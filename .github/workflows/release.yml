@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+# Needed so the job can attach the built exe to the release.
+# (The repo default token is read-only; this grants write just for this workflow.)
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Publish single-file exe
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history and tags so the version embeds correctly (git describe --tags).
+          fetch-depth: 0
+
+      - name: Set up .NET 6
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '6.0.x'
+
+      - name: Publish
+        run: dotnet publish pass-winmenu/pass-winmenu.csproj -c Release
+
+      - name: Package
+        id: package
+        shell: pwsh
+        run: |
+          $pub = "pass-winmenu/bin/Release/net6.0-windows10.0.19041.0/win-x64/publish"
+          $tag = "${{ github.event.release.tag_name }}"
+          if (-not $tag) { $tag = git describe --tags }
+          $ver = $tag.TrimStart('v')
+          $stage = "staging"
+          New-Item -ItemType Directory -Force $stage | Out-Null
+          Copy-Item "$pub/pass-winmenu.exe" $stage
+          Copy-Item "$pub/pass-winmenu.dll.config" $stage
+          $zip = "pass-winmenu-$ver-win-x64.zip"
+          Compress-Archive -Path "$stage/*" -DestinationPath $zip -Force
+          "zip=$zip" >> $env:GITHUB_OUTPUT
+
+      - name: Attach build to the release
+        if: github.event_name == 'release'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" "${{ steps.package.outputs.zip }}" --clobber
+
+      - name: Upload build as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pass-winmenu-win-x64
+          path: ${{ steps.package.outputs.zip }}

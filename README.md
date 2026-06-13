@@ -1,5 +1,8 @@
 # Pass Winmenu 2
 
+[![CI](https://github.com/giovi321/pass-winmenu-2/actions/workflows/ci.yml/badge.svg)](https://github.com/giovi321/pass-winmenu-2/actions/workflows/ci.yml)
+[![Release](https://github.com/giovi321/pass-winmenu-2/actions/workflows/release.yml/badge.svg)](https://github.com/giovi321/pass-winmenu-2/actions/workflows/release.yml)
+
 A keyboard-driven password manager for Windows that can unlock with your fingerprint.
 
 Based on [pass-winmenu](https://github.com/geluk/pass-winmenu) by Johan Geluk. It keeps the original's
