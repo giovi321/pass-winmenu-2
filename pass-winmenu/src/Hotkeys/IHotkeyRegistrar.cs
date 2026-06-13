@@ -1,0 +1,40 @@
+using System;
+using System.Windows.Input;
+
+namespace PassWinmenu.Hotkeys
+{
+	/// <summary>
+	/// Provides methods for the registration of hotkeys.
+	/// </summary>
+	public interface IHotkeyRegistrar
+	{
+		/// <summary>
+		/// Registers a hotkey with the registrar.
+		/// </summary>
+		/// <param name="modifierKeys">
+		/// The modifiers which are to be pressed with <paramref name="key"/>
+		/// in order to trigger the hotkey.
+		/// </param>
+		/// <param name="key">
+		/// The key that is to be pressed with <paramref name="modifierKeys"/>
+		/// in order to trigger the hotkey.
+		/// </param>
+		/// <param name="firedHandler">
+		/// The method to be called when the hotkey fires.
+		/// </param>
+		/// <returns>
+		/// An <see cref="IDisposable"/> which, when disposed, unregisters
+		/// the hotkey.
+		/// </returns>
+		/// <exception cref="ArgumentNullException">
+		/// <paramref name="firedHandler"/> was null.
+		/// </exception>
+		/// <exception cref="HotkeyException">
+		/// An error occurred in registering the hotkey.
+		/// </exception>
+		IDisposable Register(
+			ModifierKeys modifierKeys,
+			Key key,
+			EventHandler firedHandler);
+	}
+}

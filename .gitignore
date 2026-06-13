@@ -1,0 +1,16 @@
+# Local configuration
+.vs/
+.idea
+*.DotSettings.user
+*.csproj.user
+
+# Build artifacts
+[Bb]in/
+[Oo]bj/
+artifacts/
+version.txt
+
+# Runtime files (should never be committed)
+*.log
+biometric.blob
+pass-winmenu.yaml

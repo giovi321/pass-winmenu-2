@@ -1,0 +1,29 @@
+<Window x:Class="PassWinmenu.Windows.AboutWindow"
+        x:ClassModifier="internal"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="About Pass Winmenu 2" Height="270" Width="440"
+        WindowStartupLocation="CenterScreen" ResizeMode="NoResize" ShowInTaskbar="False">
+	<Grid Margin="20">
+		<StackPanel>
+			<TextBlock Text="Pass Winmenu 2" FontSize="20" FontWeight="Bold" />
+			<TextBlock x:Name="VersionLine" Margin="0,2,0,12" Foreground="#FF666666" />
+			<TextBlock TextWrapping="Wrap" Margin="0,0,0,10">
+				A keyboard-friendly Windows interface for the
+				<Hyperlink NavigateUri="https://www.passwordstore.org" RequestNavigate="Hyperlink_RequestNavigate">pass</Hyperlink>
+				password manager, with fingerprint (Windows Hello) unlock.
+			</TextBlock>
+			<TextBlock Margin="0,0,0,2">Created by giovi321</TextBlock>
+			<TextBlock Margin="0,0,0,12">
+				<Hyperlink NavigateUri="https://github.com/giovi321/pass-winmenu-2" RequestNavigate="Hyperlink_RequestNavigate">github.com/giovi321/pass-winmenu-2</Hyperlink>
+			</TextBlock>
+			<TextBlock TextWrapping="Wrap" Foreground="#FF666666" Margin="0,0,0,16">
+				Based on
+				<Hyperlink NavigateUri="https://github.com/geluk/pass-winmenu" RequestNavigate="Hyperlink_RequestNavigate">pass-winmenu</Hyperlink>
+				by Johan Geluk.
+			</TextBlock>
+			<Button x:Name="Btn_Close" Content="Close" Width="80" HorizontalAlignment="Right"
+			        IsDefault="True" IsCancel="True" Click="Btn_Close_Click" />
+		</StackPanel>
+	</Grid>
+</Window>

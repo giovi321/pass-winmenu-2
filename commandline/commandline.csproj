@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <!-- Must match pass-winmenu's TFM (it is referenced as a project). -->
+        <TargetFramework>net6.0-windows10.0.19041.0</TargetFramework>
+        <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <RootNamespace>PassWinmenu.CommandLine</RootNamespace>
+        <AssemblyName>pw</AssemblyName>
+    </PropertyGroup>
+	
+	<!-- Application publishing configuration -->
+	<PropertyGroup>
+		<PublishSingleFile>true</PublishSingleFile>
+		<!-- 
+		  An issue in .NET 6 requires this to be set to false to allow debugging
+		  to work.
+		  https://github.com/dotnet/runtime/issues/45382
+		-->
+		<SelfContained>false</SelfContained>
+		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
+		<IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+	</PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\pass-winmenu\pass-winmenu.csproj" />
+    </ItemGroup>
+
+</Project>
