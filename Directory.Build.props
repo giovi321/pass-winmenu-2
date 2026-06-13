@@ -1,0 +1,9 @@
+<Project>
+  <PropertyGroup>
+    <!-- LibGit2Sharp 0.26.2 ships its native binaries under legacy runtime
+         identifiers (win7-x64). .NET 8 dropped the implicit RID graph, so without
+         this the git2 native library isn't found and the builtin git sync mode
+         fails at runtime. See https://aka.ms/dotnet/rid-usage. -->
+    <UseRidGraph>true</UseRidGraph>
+  </PropertyGroup>
+</Project>

@@ -3,7 +3,7 @@
     <PropertyGroup>
         <OutputType>Exe</OutputType>
         <!-- Must match pass-winmenu's TFM (it is referenced as a project). -->
-        <TargetFramework>net6.0-windows10.0.19041.0</TargetFramework>
+        <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
         <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
@@ -14,11 +14,8 @@
 	<!-- Application publishing configuration -->
 	<PropertyGroup>
 		<PublishSingleFile>true</PublishSingleFile>
-		<!-- 
-		  An issue in .NET 6 requires this to be set to false to allow debugging
-		  to work.
-		  https://github.com/dotnet/runtime/issues/45382
-		-->
+		<!-- Framework-dependent single-file publish: one small exe that runs on the
+		     installed .NET Desktop Runtime, instead of bundling the whole runtime. -->
 		<SelfContained>false</SelfContained>
 		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
 		<IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>

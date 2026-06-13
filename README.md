@@ -19,10 +19,14 @@ find and decrypt them from the keyboard.
    and unzip it anywhere.
 2. Run `pass-winmenu.exe`. It sits in the tray; press `Ctrl Alt P` to open the menu.
 
+The download isn't code-signed, so the first time you run it Windows SmartScreen may show "Windows
+protected your PC." Click More info, then Run anyway. That's expected for an unsigned open-source app;
+the source and the workflow that built the exe are both in this repo.
+
 You'll need a few things on the machine:
 
 - Windows 10 or 11.
-- The [.NET 6 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/6.0) (the build is framework-dependent).
+- The [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) (the build is framework-dependent).
 - GPG, from [Gpg4win](https://www.gpg4win.org/) or GnuPG for Windows.
 
 The app reads a `pass-winmenu.yaml` next to the exe and creates one on first run. If you've never used
@@ -30,7 +34,7 @@ The app reads a `pass-winmenu.yaml` next to the exe and creates one on first run
 
 ## Build from source
 
-You need the .NET 6 SDK. The project targets `net6.0-windows10.0.19041.0` because the Windows Hello APIs
+You need the .NET 8 SDK. The project targets `net8.0-windows10.0.19041.0` because the Windows Hello APIs
 live in the Windows 10 SDK.
 
 ```
@@ -224,7 +228,7 @@ A companion command-line tool, `pw`, comes with it:
 
 | Path | What it is |
 |------|------------|
-| `pass-winmenu/` | The tray application (WPF, .NET 6). |
+| `pass-winmenu/` | The tray application (WPF, .NET 8). |
 | `pass-winmenu/src/` | The application code, grouped by area: `Actions`, `Biometrics`, `Configuration`, `ExternalPrograms/Gpg`, `Hotkeys`, `Jobs`, `Notifications`, `PasswordGeneration`, `PasswordManagement`, `UpdateChecking`, `Utilities`, `WinApi`, `Windows`. |
 | `pass-winmenu/embedded/` | Resources baked into the exe: `default-config.yaml` (the reference config), `wordlist.txt` (the EFF list for XKCD passphrases), and the tray icons. |
 | `commandline/` | The `pw` command-line tool. |

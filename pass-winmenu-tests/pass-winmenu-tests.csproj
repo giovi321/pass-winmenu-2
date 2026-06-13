@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <!-- Matches pass-winmenu's TFM (referenced project targets the Windows 10 SDK). -->
-    <TargetFramework>net6.0-windows10.0.19041.0</TargetFramework>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
     <RootNamespace>PassWinmenuTests</RootNamespace>
     <Nullable>enable</Nullable>
 
@@ -10,7 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.11.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="Moq" Version="4.18.4" />
     <PackageReference Include="Shouldly" Version="4.1.0" />
     <PackageReference Include="System.IO.Abstractions" Version="19.2.4" />

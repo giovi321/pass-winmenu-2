@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net6.0-windows10.0.19041.0</TargetFramework>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
     <!-- Targeting the Windows 10 SDK gives access to WinRT APIs (Windows Hello /
          KeyCredentialManager). SupportedOSPlatformVersion keeps the app runnable on
          older Windows 10 builds; biometric features are guarded at runtime. -->
@@ -17,11 +17,8 @@
   <!-- Application publishing configuration -->
   <PropertyGroup>
     <PublishSingleFile>true</PublishSingleFile>
-    <!-- 
-      An issue in .NET 6 requires this to be set to false to allow debugging
-      to work.
-      https://github.com/dotnet/runtime/issues/45382
-    -->
+    <!-- Framework-dependent single-file publish: one small exe that runs on the
+         installed .NET Desktop Runtime, instead of bundling the whole runtime. -->
     <SelfContained>false</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
@@ -86,7 +83,7 @@
     <PackageReference Include="Microsoft.DotNet.UpgradeAssistant.Extensions.Default.Analyzers" Version="0.4.410601">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Windows.Compatibility" Version="7.0.3" />
+    <PackageReference Include="Microsoft.Windows.Compatibility" Version="8.0.0" />
   </ItemGroup>
   <Target Name="PreBuild" AfterTargets="PreBuildEvent">
     <Exec Command="git describe --tags &gt; &quot;$(ProjectDir)embedded\version.txt&quot;" />
