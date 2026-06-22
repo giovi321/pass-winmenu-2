@@ -226,21 +226,15 @@ gpg:
     # typing it. Disabled by default. When enabled, set it up once via the tray menu
     # (More Actions -> Set up Windows Hello unlock): your passphrase is then encrypted with
     # a TPM-backed Windows Hello key and released only after a successful Windows Hello gesture.
+    #
+    # How often you are asked is governed entirely by gpg-agent's own passphrase cache (the
+    # gpg-agent.config.keys 'default-cache-ttl' / 'max-cache-ttl' settings above): you are asked
+    # for Windows Hello only when gpg-agent's cache is cold, and declining the prompt cancels the
+    # decryption rather than revealing a cached password. To be asked more or less often, change
+    # gpg-agent's cache lifetimes (this requires allow-config-management above, or editing
+    # gpg-agent.conf yourself).
     biometrics:
         enabled: false
-        # How often you are asked for your fingerprint:
-        #   once-per-session: authenticate once at startup; gpg-agent caches the passphrase
-        #                     for the rest of the session (the passphrase is not kept inside
-        #                     pass-winmenu itself). This mode enables 'allow-preset-passphrase'
-        #                     in your gpg-agent.conf; it is removed again automatically when you
-        #                     disable Windows Hello unlock.
-        #   cache:            authenticate, then a short window of silent access (cache-seconds)
-        #                     before you are asked again.
-        #   every-password:   authenticate with a fresh gesture on every single decryption.
-        mode: once-per-session
-        # Only used when mode is 'cache': how many seconds the unlocked passphrase stays
-        # available before another fingerprint is required.
-        cache-seconds: 600
         # The name of the Windows Hello credential pass-winmenu creates.
         credential-name: pass-winmenu-gpg
         # Optional: the id of the GPG key whose passphrase should be unlocked. Leave blank to
@@ -321,6 +315,15 @@ hotkeys:
     # Show all fields of a password file and copy the one you pick.
     hotkey: 'ctrl alt o'
     action: 'show-password'
+  -
+    # Generate the current TOTP code from a password file's 'TOTP:' or 'OTPAUTH:'
+    # metadata field and type it into the active window. Set type-totp-code to false
+    # and copy-to-clipboard to true to copy it to the clipboard instead.
+    hotkey: 'ctrl alt t'
+    action: 'generate-totp-code'
+    options:
+        type-totp-code: true
+        copy-to-clipboard: false
     # Example configuration of an 'add password' hotkey. Uncomment to enable.
 #  - 
 #    hotkey: 'ctrl alt shift n'

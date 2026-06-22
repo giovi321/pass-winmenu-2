@@ -13,7 +13,6 @@ namespace PassWinmenu.Configuration
 			.WithTypeConverter(new BrushConverter())
 			.WithTypeConverter(new SizeConverter())
 			.WithTypeConverter(new PascalCaseEnumConverter<HotkeyAction>())
-			.WithTypeConverter(new PascalCaseEnumConverter<BiometricUnlockMode>())
 			.WithTypeConverter(new PascalCaseEnumConverter<PasswordGenerationStyle>())
 			.WithTypeConverter(new PascalCaseEnumConverter<XkcdCapitalisation>())
 			.Build();

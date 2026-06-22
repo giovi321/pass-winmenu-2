@@ -26,7 +26,7 @@ namespace PassWinmenu
 				container.Resolve<AssignHotkeys>().Run();
 				container.Resolve<StartUpdateChecker>().Run();
 				container.Resolve<PreloadGpgAgent>().Run();
-				container.Resolve<BiometricUnlockJob>().Run();
+				container.Resolve<RemoveBiometricPreset>().Run();
 				container.Resolve<StartRemoteUpdateChecker>().Run();
 				container.Resolve<EnableConfigReloading>().Run();
 			}

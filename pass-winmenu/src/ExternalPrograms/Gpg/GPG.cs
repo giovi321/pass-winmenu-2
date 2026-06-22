@@ -34,40 +34,108 @@ namespace PassWinmenu.ExternalPrograms.Gpg
 		/// <exception cref="GpgException">Thrown when decryption fails.</exception>
 		public string Decrypt(string file)
 		{
-			// When a biometric passphrase provider supplies a passphrase, feed it to GPG via
-			// loopback pinentry (passphrase on stdin / fd 0) instead of prompting. Otherwise
-			// decrypt normally and let gpg-agent/pinentry (or a startup preset) handle it.
-			var passphrase = passphraseProvider?.GetPassphrase();
-			if (passphrase != null)
+			// With Windows Hello unlock enabled, the re-authentication cadence is governed solely by
+			// gpg-agent's own passphrase cache: probe that cache first and only require a Hello
+			// gesture on a miss. Without it, decrypt normally and let gpg-agent/pinentry handle the
+			// passphrase.
+			if (passphraseProvider is { IsEnabled: true })
 			{
-				// Pass the passphrase as raw bytes on stdin (fd 0) so it never becomes an
-				// un-zeroable string. The file is passed by path, so stdin is free for it.
-				var passphraseBytes = ToStdinBytes(passphrase);
-				try
-				{
-					var result = CallGpg(
-						$"--pinentry-mode loopback --passphrase-fd 0 --decrypt {GpgArguments.Quote(file)}",
-						operationArguments: additionalOptions.Decrypt,
-						secretStdin: passphraseBytes);
-					gpgResultVerifier.VerifyDecryption(result);
-					return result.RawStdout;
-				}
-				catch (BadPassphraseException)
-				{
-					// The stored passphrase was rejected (e.g. the GPG passphrase changed). Discard
-					// it (prompting re-enrolment) and fall back to a normal pinentry prompt.
-					passphraseProvider!.Invalidate();
-				}
-				finally
-				{
-					Array.Clear(passphrase, 0, passphrase.Length);
-					Array.Clear(passphraseBytes, 0, passphraseBytes.Length);
-				}
+				return DecryptWithWindowsHello(file);
 			}
 
-			var normalResult = CallGpg($"--decrypt {GpgArguments.Quote(file)}", null, additionalOptions.Decrypt);
-			gpgResultVerifier.VerifyDecryption(normalResult);
-			return normalResult.RawStdout;
+			return DecryptNormally(file);
+		}
+
+		private string DecryptNormally(string file)
+		{
+			var result = CallGpg($"--decrypt {GpgArguments.Quote(file)}", null, additionalOptions.Decrypt);
+			gpgResultVerifier.VerifyDecryption(result);
+			return result.RawStdout;
+		}
+
+		private string DecryptWithWindowsHello(string file)
+		{
+			// 1. Probe gpg-agent's cache without prompting. If the passphrase is still cached (within
+			//    gpg-agent's TTL) this decrypts silently and no Hello gesture is needed.
+			if (TryDecryptFromAgentCache(file, out var cached))
+			{
+				return cached;
+			}
+
+			// 2. The cache is cold, so a Windows Hello gesture is required.
+			var result = passphraseProvider!.GetPassphrase();
+			switch (result.Outcome)
+			{
+				case PassphraseOutcome.Provided:
+					return DecryptWithLoopback(file, result.Passphrase!);
+
+				case PassphraseOutcome.Declined:
+					// The user actively declined the gesture. Fail closed: do NOT fall back to a
+					// normal decrypt, which would silently bypass Windows Hello if gpg-agent happened
+					// to have the passphrase cached.
+					throw new GpgError("Windows Hello unlock was declined.");
+
+				case PassphraseOutcome.Unavailable:
+				default:
+					// Windows Hello is enabled but not usable (not enrolled, no hardware, or its key
+					// was reset). Fall back to the normal pinentry flow so the user is not locked out.
+					return DecryptNormally(file);
+			}
+		}
+
+		/// <summary>
+		/// Attempts to decrypt using only a passphrase already cached by gpg-agent, without
+		/// prompting. <c>--pinentry-mode cancel</c> makes gpg-agent refuse to launch a pinentry, so
+		/// the decryption succeeds only on a cache hit and fails cleanly on a miss.
+		/// </summary>
+		private bool TryDecryptFromAgentCache(string file, out string plaintext)
+		{
+			var result = CallGpg(
+				$"--pinentry-mode cancel --decrypt {GpgArguments.Quote(file)}",
+				null,
+				additionalOptions.Decrypt);
+			try
+			{
+				gpgResultVerifier.VerifyDecryption(result);
+			}
+			catch (GpgException)
+			{
+				// Cache miss (or any decryption failure): proceed to a Windows Hello gesture.
+				plaintext = string.Empty;
+				return false;
+			}
+
+			plaintext = result.RawStdout;
+			return true;
+		}
+
+		private string DecryptWithLoopback(string file, char[] passphrase)
+		{
+			// Pass the passphrase as raw bytes on stdin (fd 0) so it never becomes an un-zeroable
+			// string. The file is passed by path, so stdin is free for it.
+			var passphraseBytes = ToStdinBytes(passphrase);
+			try
+			{
+				var result = CallGpg(
+					$"--pinentry-mode loopback --passphrase-fd 0 --decrypt {GpgArguments.Quote(file)}",
+					operationArguments: additionalOptions.Decrypt,
+					secretStdin: passphraseBytes);
+				gpgResultVerifier.VerifyDecryption(result);
+				return result.RawStdout;
+			}
+			catch (BadPassphraseException)
+			{
+				// The stored passphrase was rejected (e.g. the GPG passphrase changed). Discard it
+				// (prompting re-enrolment) and fall back to a normal pinentry prompt. The agent cache
+				// is cold here, so this still requires real authentication.
+				passphraseProvider!.Invalidate();
+				return DecryptNormally(file);
+			}
+			finally
+			{
+				Array.Clear(passphrase, 0, passphrase.Length);
+				Array.Clear(passphraseBytes, 0, passphraseBytes.Length);
+			}
 		}
 
 		/// <summary>

@@ -1,23 +1,30 @@
 namespace PassWinmenu.Biometrics;
 
 /// <summary>
-/// Supplies a GPG passphrase to inject into a single decryption via loopback pinentry, used
-/// for the "every-password" and "cache" cadences. Returns null to mean "do nothing special"
-/// (use gpg-agent/pinentry as normal), which is the case when biometrics are disabled, in
-/// once-per-session mode, or when Windows Hello is unavailable/cancelled.
+/// Supplies the GPG passphrase for loopback decryption via Windows Hello. The re-authentication
+/// cadence is governed solely by gpg-agent's own passphrase cache: <see cref="GPG.Decrypt"/>
+/// probes that cache first and only asks this provider for a passphrase on a cache miss. When the
+/// user declines the Hello gesture the decryption fails closed rather than falling back to a
+/// (potentially cached) normal decrypt.
 /// </summary>
 internal interface IPassphraseProvider
 {
 	/// <summary>
-	/// Returns a passphrase for the next decryption (the caller owns it and must clear it),
-	/// or null to fall back to the normal gpg-agent/pinentry flow.
+	/// Whether Windows Hello unlock is enabled. When false, GPG decrypts normally and lets
+	/// gpg-agent/pinentry handle the passphrase.
 	/// </summary>
-	char[]? GetPassphrase();
+	bool IsEnabled { get; }
+
+	/// <summary>
+	/// Prompts for a Windows Hello gesture and returns the result. Called only after a gpg-agent
+	/// cache miss. The caller owns any returned passphrase and must clear it.
+	/// </summary>
+	PassphraseResult GetPassphrase();
 
 	/// <summary>
 	/// Signals that a passphrase returned by <see cref="GetPassphrase"/> was rejected by GPG
-	/// (e.g. the GPG passphrase was changed). Implementations should discard any cached/stored
-	/// passphrase so the user is prompted to re-enrol.
+	/// (e.g. the GPG passphrase was changed). Implementations should discard any stored passphrase
+	/// so the user is prompted to re-enrol.
 	/// </summary>
 	void Invalidate();
 }

@@ -47,6 +47,16 @@ Or open `pass-winmenu.sln` in Visual Studio. To produce the single-file exe that
 dotnet publish pass-winmenu/pass-winmenu.csproj -c Release
 ```
 
+## What's new in 2.2.1
+
+- Windows Hello unlock now takes its re-prompt cadence solely from gpg-agent's passphrase cache. The
+  separate `mode` and `cache-seconds` options are gone — old configs keep working, the leftover keys are
+  simply ignored. See [Windows Hello unlock](#windows-hello-unlock).
+- Declining a Windows Hello prompt now cancels the decryption instead of silently falling back to a
+  cached passphrase, closing a gap where pressing Escape could still release a password.
+- A default `Ctrl Alt T` hotkey generates the current TOTP code and types it into the active window. See
+  [Two-factor codes (TOTP)](#two-factor-codes-totp).
+
 ## What's new in 2.1
 
 - Unlock with Windows Hello (fingerprint, PIN, or face) instead of typing your GPG passphrase. The
@@ -69,6 +79,9 @@ To look through a file field by field, use the **Show Password Fields** action (
 or the tray menu). Each field shows its value, the password is masked until you reveal it, and a click
 copies the value you want.
 
+For accounts with two-factor authentication, `Ctrl Alt T` generates the current TOTP code and types it
+into the active window. See [Two-factor codes (TOTP)](#two-factor-codes-totp).
+
 ## Windows Hello unlock
 
 Turn it on in `pass-winmenu.yaml` under `gpg.biometrics`:
@@ -77,9 +90,6 @@ Turn it on in `pass-winmenu.yaml` under `gpg.biometrics`:
 gpg:
     biometrics:
         enabled: true
-        # once-per-session | cache | every-password
-        mode: once-per-session
-        cache-seconds: 600
         credential-name: pass-winmenu-gpg
 ```
 
@@ -87,13 +97,13 @@ Then enrol once: right-click the tray icon, open **More Actions**, and pick **Se
 (or run `pw enroll` from a terminal). Enter your GPG passphrase once and it's stored, unlocked from then on
 with a Hello gesture.
 
-`mode` controls how often you're asked:
-
-| Mode              | Behaviour                                                                                          |
-|-------------------|----------------------------------------------------------------------------------------------------|
-| `once-per-session`| One prompt at startup. gpg-agent caches the passphrase for the session, so the app doesn't hold it. |
-| `cache`           | A prompt, then a quiet window of `cache-seconds` before the next one.                              |
-| `every-password`  | A fresh Hello gesture on every decryption.                                                         |
+How often you're asked is governed entirely by **gpg-agent's own passphrase cache**, so there's a single
+source of truth instead of two timers fighting each other. Before each decryption pass-winmenu probes
+gpg-agent's cache: if the passphrase is still cached (within gpg-agent's `default-cache-ttl` /
+`max-cache-ttl`), the password is released silently with no prompt; if the cache is cold, you get a Hello
+prompt. **Declining the prompt cancels the decryption** — it never falls back to a cached password. To be
+asked more or less often, change gpg-agent's cache lifetimes (see `gpg.gpg-agent.config.keys`, which
+pass-winmenu can manage for you, or edit `gpg-agent.conf` directly).
 
 How it actually protects the passphrase: it's encrypted with AES-256-GCM under a key derived from a
 signature made by a TPM-backed Windows Hello key (`KeyCredentialManager`), so the blob can only be
@@ -107,6 +117,28 @@ unlocked session. It's the same bargain your browser makes when it gates saved p
 Hello, and it's off by default. If GPG later rejects the stored passphrase (say you changed it) or your
 Hello key gets reset, the app drops the enrolment, asks you to set it up again, and falls back to a normal
 pinentry prompt in the meantime.
+
+## Two-factor codes (TOTP)
+
+Pass Winmenu 2 can produce the current six-digit TOTP (time-based one-time password) for an account and
+either type it into the active window or copy it to the clipboard. Store the shared secret in the password
+file's metadata, on its own line, as either a bare secret:
+
+```
+TOTP: JBSWY3DPEHPK3PXP
+```
+
+or a full otpauth URL (handy when you paste it straight from a provider's "manual entry" details):
+
+```
+OTPAUTH: otpauth://totp/Example:you@example.com?secret=JBSWY3DPEHPK3PXP&issuer=Example
+```
+
+The default config binds **`Ctrl Alt T`** to the `generate-totp-code` action, which types the code where
+your cursor is: trigger it, pick the file, and the code is typed into whatever window was focused. To copy
+it to the clipboard instead, set `type-totp-code: false` and `copy-to-clipboard: true` on that hotkey (the
+tray menu's **Generate TOTP Code** entry always copies). The code is whatever is valid at that moment, so
+use it before its 30-second window rolls over.
 
 ## Password generation
 

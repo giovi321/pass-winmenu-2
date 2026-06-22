@@ -1,4 +1,3 @@
-using System.Threading.Tasks;
 using Moq;
 using PassWinmenu.Biometrics;
 using PassWinmenu.Configuration;
@@ -11,6 +10,8 @@ namespace PassWinmenuTests.Biometrics
 {
 	public class BiometricPassphraseProviderTests
 	{
+		// Builds a provider over a real vault (FakeBiometricKeyStore + in-memory blob) so the
+		// success/disabled/not-enrolled paths exercise the actual unlock flow.
 		private static (BiometricPassphraseProvider provider, FakeBiometricKeyStore keyStore) Build(
 			BiometricConfig config,
 			bool enrol = true)
@@ -29,55 +30,108 @@ namespace PassWinmenuTests.Biometrics
 			return (provider, keyStore);
 		}
 
-		[Fact]
-		public void GetPassphrase_WhenDisabled_ReturnsNull()
+		// Builds a provider over a mocked vault so a specific UnlockOutcome can be injected.
+		private static BiometricPassphraseProvider BuildWithVault(
+			IBiometricVault vault,
+			bool enabled = true,
+			INotificationService? notifications = null)
 		{
-			var (provider, keyStore) = Build(new BiometricConfig { Enabled = false, Mode = BiometricUnlockMode.EveryPassword });
+			return new BiometricPassphraseProvider(
+				new BiometricConfig { Enabled = enabled },
+				vault,
+				notifications ?? Mock.Of<INotificationService>());
+		}
 
-			provider.GetPassphrase().ShouldBeNull();
+		[Fact]
+		public void IsEnabled_ReflectsConfig()
+		{
+			Build(new BiometricConfig { Enabled = true }).provider.IsEnabled.ShouldBeTrue();
+			Build(new BiometricConfig { Enabled = false }).provider.IsEnabled.ShouldBeFalse();
+		}
+
+		[Fact]
+		public void GetPassphrase_WhenDisabled_ReturnsUnavailableWithoutGesture()
+		{
+			var (provider, keyStore) = Build(new BiometricConfig { Enabled = false });
+
+			provider.GetPassphrase().Outcome.ShouldBe(PassphraseOutcome.Unavailable);
 			keyStore.SignCount.ShouldBe(0);
 		}
 
 		[Fact]
-		public void GetPassphrase_OncePerSession_ReturnsNull()
+		public void GetPassphrase_Success_ReturnsProvidedPassphrase()
 		{
-			// Once-per-session is handled by the startup preset job, not the loopback provider.
-			var (provider, _) = Build(new BiometricConfig { Enabled = true, Mode = BiometricUnlockMode.OncePerSession });
+			var (provider, keyStore) = Build(new BiometricConfig { Enabled = true });
 
-			provider.GetPassphrase().ShouldBeNull();
+			var result = provider.GetPassphrase();
+
+			result.Outcome.ShouldBe(PassphraseOutcome.Provided);
+			new string(result.Passphrase).ShouldBe("s3cret");
+			keyStore.SignCount.ShouldBe(1);
 		}
 
 		[Fact]
-		public void GetPassphrase_EveryPassword_UnlocksOnEveryCall()
+		public void GetPassphrase_UnlocksWithAFreshGestureOnEveryCall()
 		{
-			var (provider, keyStore) = Build(new BiometricConfig { Enabled = true, Mode = BiometricUnlockMode.EveryPassword });
+			// The provider keeps no cache of its own (gpg-agent's cache is the only one), so each
+			// call prompts for a fresh gesture.
+			var (provider, keyStore) = Build(new BiometricConfig { Enabled = true });
 
-			new string(provider.GetPassphrase()).ShouldBe("s3cret");
-			new string(provider.GetPassphrase()).ShouldBe("s3cret");
+			provider.GetPassphrase().Outcome.ShouldBe(PassphraseOutcome.Provided);
+			provider.GetPassphrase().Outcome.ShouldBe(PassphraseOutcome.Provided);
 
 			keyStore.SignCount.ShouldBe(2);
 		}
 
 		[Fact]
-		public void GetPassphrase_Cache_ReusesCachedPassphraseWithinWindow()
+		public void GetPassphrase_NotEnrolled_ReturnsUnavailable()
 		{
-			var (provider, keyStore) = Build(new BiometricConfig { Enabled = true, Mode = BiometricUnlockMode.Cache, CacheSeconds = 3600 });
+			var (provider, _) = Build(new BiometricConfig { Enabled = true }, enrol: false);
 
-			new string(provider.GetPassphrase()).ShouldBe("s3cret");
-			new string(provider.GetPassphrase()).ShouldBe("s3cret");
-
-			// Second call served from cache: only one Hello gesture.
-			keyStore.SignCount.ShouldBe(1);
+			provider.GetPassphrase().Outcome.ShouldBe(PassphraseOutcome.Unavailable);
 		}
 
 		[Fact]
-		public void GetPassphrase_NotEnrolled_ReturnsNull()
+		public void GetPassphrase_UserCancelled_ReturnsDeclined()
 		{
-			var (provider, _) = Build(
-				new BiometricConfig { Enabled = true, Mode = BiometricUnlockMode.EveryPassword },
-				enrol: false);
+			var vault = new Mock<IBiometricVault>();
+			vault.Setup(v => v.TryUnlockAsync()).ReturnsAsync(UnlockResult.Of(UnlockOutcome.Cancelled));
 
-			provider.GetPassphrase().ShouldBeNull();
+			BuildWithVault(vault.Object).GetPassphrase().Outcome.ShouldBe(PassphraseOutcome.Declined);
+		}
+
+		[Fact]
+		public void GetPassphrase_Failed_ReturnsUnavailableAndNotifies()
+		{
+			var vault = new Mock<IBiometricVault>();
+			vault.Setup(v => v.TryUnlockAsync()).ReturnsAsync(UnlockResult.Of(UnlockOutcome.Failed, "boom"));
+			var notifications = new Mock<INotificationService>();
+
+			BuildWithVault(vault.Object, notifications: notifications.Object)
+				.GetPassphrase().Outcome.ShouldBe(PassphraseOutcome.Unavailable);
+
+			notifications.Verify(n => n.Raise(It.IsAny<string>(), Severity.Error), Times.Once);
+		}
+
+		[Fact]
+		public void GetPassphrase_KeyInvalidated_ClearsEnrollmentAndReturnsUnavailable()
+		{
+			var vault = new Mock<IBiometricVault>();
+			vault.Setup(v => v.TryUnlockAsync()).ReturnsAsync(UnlockResult.Of(UnlockOutcome.KeyInvalidated, "reset"));
+
+			BuildWithVault(vault.Object).GetPassphrase().Outcome.ShouldBe(PassphraseOutcome.Unavailable);
+
+			vault.Verify(v => v.ClearEnrollment(), Times.Once);
+		}
+
+		[Fact]
+		public void Invalidate_ClearsEnrollment()
+		{
+			var vault = new Mock<IBiometricVault>();
+
+			BuildWithVault(vault.Object).Invalidate();
+
+			vault.Verify(v => v.ClearEnrollment(), Times.Once);
 		}
 	}
 }

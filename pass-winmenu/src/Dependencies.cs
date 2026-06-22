@@ -101,8 +101,6 @@ namespace PassWinmenu
 					typeof(GpgAgentConfigUpdater),
 					typeof(GpgTransport),
 					typeof(GpgResultVerifier),
-					typeof(GpgKeygripResolver),
-					typeof(GpgAgentPresetService),
 					typeof(GpgAgentControl),
 					typeof(GPG))
 				.AsImplementedInterfaces()
@@ -122,20 +120,16 @@ namespace PassWinmenu
 		public DependenciesBuilder RegisterBiometrics()
 		{
 			// Windows Hello unlock services. The key store is the only type that touches WinRT.
+			// The passphrase provider is stateless (it keeps no cache of its own), so it needs no
+			// special lifetime.
 			builder.RegisterTypes(
 					typeof(KeyCredentialBiometricKeyStore),
 					typeof(PassphraseProtector),
 					typeof(FileBiometricBlobStore),
-					typeof(BiometricVault))
+					typeof(BiometricVault),
+					typeof(BiometricPassphraseProvider))
 				.AsImplementedInterfaces()
 				.AsSelf();
-
-			// Single instance so the short-lived passphrase cache (cache cadence) survives
-			// across decryptions.
-			builder.RegisterType<BiometricPassphraseProvider>()
-				.AsImplementedInterfaces()
-				.AsSelf()
-				.SingleInstance();
 
 			return this;
 		}
@@ -199,7 +193,7 @@ namespace PassWinmenu
 					typeof(StartRemoteUpdateChecker),
 					typeof(StartUpdateChecker),
 					typeof(UpdateGpgAgentConfig),
-					typeof(BiometricUnlockJob))
+					typeof(RemoveBiometricPreset))
 				.AsImplementedInterfaces()
 				.AsSelf();
 
