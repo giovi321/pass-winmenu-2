@@ -77,14 +77,14 @@ internal sealed class NgcBiometricKeyStore : IBiometricKeyStore
 	{
 		using var prompt = WindowsHelloPrompt.Show("Setting up Windows Hello for Pass Winmenu 2…");
 
-		using var key = CreatePersistedKey(credentialName, prompt.Handle);
+		CreatePersistedKey(credentialName, prompt.Handle);
 
 		// Wrap a fresh random secret with the new key and store the ciphertext. Encryption needs no
 		// gesture; only the later decryption (unlock) does.
 		var secret = RandomNumberGenerator.GetBytes(SecretLength);
 		try
 		{
-			var ciphertext = Encrypt(key, secret);
+			var ciphertext = Encrypt(credentialName, secret);
 			fileSystem.File.WriteAllBytes(secretPath, ciphertext);
 		}
 		finally
@@ -132,7 +132,7 @@ internal sealed class NgcBiometricKeyStore : IBiometricKeyStore
 		return Task.CompletedTask;
 	}
 
-	private static SafeNCryptKeyHandle CreatePersistedKey(string credentialName, IntPtr parentWindow)
+	private static void CreatePersistedKey(string credentialName, IntPtr parentWindow)
 	{
 		Check(NativeMethods.NCryptOpenStorageProvider(out var provider, NativeMethods.MS_NGC_KEY_STORAGE_PROVIDER, 0), "open the Windows Hello provider");
 		using (provider)
@@ -140,42 +140,52 @@ internal sealed class NgcBiometricKeyStore : IBiometricKeyStore
 			Check(
 				NativeMethods.NCryptCreatePersistedKey(provider, out var key, NativeMethods.BCRYPT_RSA_ALGORITHM, credentialName, 0, CngKeyCreationOptions.OverwriteExistingKey),
 				"create the Windows Hello key");
-
-			var length = BitConverter.GetBytes(2048);
-			Check(NativeMethods.NCryptSetProperty(key, NativeMethods.NCRYPT_LENGTH_PROPERTY, length, length.Length, CngPropertyOptions.None), "set the key length");
-
-			var usage = BitConverter.GetBytes(NativeMethods.NCRYPT_ALLOW_DECRYPT_FLAG);
-			Check(NativeMethods.NCryptSetProperty(key, NativeMethods.NCRYPT_KEY_USAGE_PROPERTY, usage, usage.Length, CngPropertyOptions.None), "set the key usage");
-
-			// Force a Hello gesture on every use of the key (instead of caching the unlock).
-			var cacheType = BitConverter.GetBytes(NativeMethods.NGC_CACHE_TYPE_AUTH_MANDATORY);
-			if (NativeMethods.NCryptSetProperty(key, NativeMethods.NCRYPT_NGC_CACHE_TYPE_PROPERTY, cacheType, cacheType.Length, CngPropertyOptions.None) < 0)
+			using (key)
 			{
-				Check(
-					NativeMethods.NCryptSetProperty(key, NativeMethods.NCRYPT_NGC_CACHE_TYPE_PROPERTY_DEPRECATED, cacheType, cacheType.Length, CngPropertyOptions.None),
-					"set the gesture requirement");
+				var length = BitConverter.GetBytes(2048);
+				Check(NativeMethods.NCryptSetProperty(key, NativeMethods.NCRYPT_LENGTH_PROPERTY, length, length.Length, CngPropertyOptions.None), "set the key length");
+
+				var usage = BitConverter.GetBytes(NativeMethods.NCRYPT_ALLOW_DECRYPT_FLAG);
+				Check(NativeMethods.NCryptSetProperty(key, NativeMethods.NCRYPT_KEY_USAGE_PROPERTY, usage, usage.Length, CngPropertyOptions.None), "set the key usage");
+
+				// Force a Hello gesture on every use of the key (instead of caching the unlock).
+				var cacheType = BitConverter.GetBytes(NativeMethods.NGC_CACHE_TYPE_AUTH_MANDATORY);
+				if (NativeMethods.NCryptSetProperty(key, NativeMethods.NCRYPT_NGC_CACHE_TYPE_PROPERTY, cacheType, cacheType.Length, CngPropertyOptions.None) < 0)
+				{
+					Check(
+						NativeMethods.NCryptSetProperty(key, NativeMethods.NCRYPT_NGC_CACHE_TYPE_PROPERTY_DEPRECATED, cacheType, cacheType.Length, CngPropertyOptions.None),
+						"set the gesture requirement");
+				}
+
+				SetWindowHandle(key, parentWindow);
+
+				Check(NativeMethods.NCryptFinalizeKey(key, 0), "finalise the Windows Hello key");
 			}
-
-			SetWindowHandle(key, parentWindow);
-
-			Check(NativeMethods.NCryptFinalizeKey(key, 0), "finalise the Windows Hello key");
-			return key;
 		}
 	}
 
-	private static byte[] Encrypt(SafeNCryptKeyHandle key, byte[] data)
+	private static byte[] Encrypt(string credentialName, byte[] data)
 	{
-		Check(NativeMethods.NCryptEncrypt(key, data, data.Length, IntPtr.Zero, null, 0, out var size, NativeMethods.NCRYPT_PAD_PKCS1_FLAG), "measure the wrapped secret");
-
-		var output = new byte[size];
-		Check(NativeMethods.NCryptEncrypt(key, data, data.Length, IntPtr.Zero, output, output.Length, out size, NativeMethods.NCRYPT_PAD_PKCS1_FLAG), "wrap the secret");
-
-		if (size != output.Length)
+		Check(NativeMethods.NCryptOpenStorageProvider(out var provider, NativeMethods.MS_NGC_KEY_STORAGE_PROVIDER, 0), "open the Windows Hello provider");
+		using (provider)
 		{
-			Array.Resize(ref output, size);
-		}
+			// Silent: wrapping the secret needs no gesture, only the later unlock does.
+			Check(NativeMethods.NCryptOpenKey(provider, out var key, credentialName, 0, CngKeyOpenOptions.Silent), "open the Windows Hello key");
+			using (key)
+			{
+				Check(NativeMethods.NCryptEncrypt(key, data, data.Length, IntPtr.Zero, null, 0, out var size, NativeMethods.NCRYPT_PAD_PKCS1_FLAG), "measure the wrapped secret");
 
-		return output;
+				var output = new byte[size];
+				Check(NativeMethods.NCryptEncrypt(key, data, data.Length, IntPtr.Zero, output, output.Length, out size, NativeMethods.NCRYPT_PAD_PKCS1_FLAG), "wrap the secret");
+
+				if (size != output.Length)
+				{
+					Array.Resize(ref output, size);
+				}
+
+				return output;
+			}
+		}
 	}
 
 	private static byte[] Decrypt(string credentialName, byte[] ciphertext, IntPtr parentWindow)
