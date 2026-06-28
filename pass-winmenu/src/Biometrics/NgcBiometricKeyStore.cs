@@ -2,6 +2,7 @@ using System;
 using System.IO.Abstractions;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using System.Security.Principal;
 using System.Threading.Tasks;
 using Microsoft.Win32.SafeHandles;
 using PassWinmenu.Configuration;
@@ -63,7 +64,7 @@ internal sealed class NgcBiometricKeyStore : IBiometricKeyStore
 
 		using (provider)
 		{
-			if (NativeMethods.NCryptOpenKey(provider, out var key, credentialName, 0, CngKeyOpenOptions.Silent) < 0)
+			if (NativeMethods.NCryptOpenKey(provider, out var key, NgcKeyName(credentialName), 0, CngKeyOpenOptions.Silent) < 0)
 			{
 				return Task.FromResult(false);
 			}
@@ -131,7 +132,7 @@ internal sealed class NgcBiometricKeyStore : IBiometricKeyStore
 
 		using (provider)
 		{
-			if (NativeMethods.NCryptOpenKey(provider, out var key, credentialName, 0, CngKeyOpenOptions.Silent) < 0)
+			if (NativeMethods.NCryptOpenKey(provider, out var key, NgcKeyName(credentialName), 0, CngKeyOpenOptions.Silent) < 0)
 			{
 				return;
 			}
@@ -159,7 +160,7 @@ internal sealed class NgcBiometricKeyStore : IBiometricKeyStore
 		using (provider)
 		{
 			Check(
-				NativeMethods.NCryptCreatePersistedKey(provider, out var key, NativeMethods.BCRYPT_RSA_ALGORITHM, credentialName, 0, CngKeyCreationOptions.None),
+				NativeMethods.NCryptCreatePersistedKey(provider, out var key, NativeMethods.BCRYPT_RSA_ALGORITHM, NgcKeyName(credentialName), 0, CngKeyCreationOptions.None),
 				"create the Windows Hello key");
 			using (key)
 			{
@@ -191,7 +192,7 @@ internal sealed class NgcBiometricKeyStore : IBiometricKeyStore
 		using (provider)
 		{
 			// Silent: wrapping the secret needs no gesture, only the later unlock does.
-			Check(NativeMethods.NCryptOpenKey(provider, out var key, credentialName, 0, CngKeyOpenOptions.Silent), "open the Windows Hello key");
+			Check(NativeMethods.NCryptOpenKey(provider, out var key, NgcKeyName(credentialName), 0, CngKeyOpenOptions.Silent), "open the Windows Hello key");
 			using (key)
 			{
 				Check(NativeMethods.NCryptEncrypt(key, data, data.Length, IntPtr.Zero, null, 0, out var size, NativeMethods.NCRYPT_PAD_PKCS1_FLAG), "measure the wrapped secret");
@@ -214,7 +215,7 @@ internal sealed class NgcBiometricKeyStore : IBiometricKeyStore
 		Check(NativeMethods.NCryptOpenStorageProvider(out var provider, NativeMethods.MS_NGC_KEY_STORAGE_PROVIDER, 0), "open the Windows Hello provider");
 		using (provider)
 		{
-			Check(NativeMethods.NCryptOpenKey(provider, out var key, credentialName, 0, CngKeyOpenOptions.None), "open the Windows Hello key");
+			Check(NativeMethods.NCryptOpenKey(provider, out var key, NgcKeyName(credentialName), 0, CngKeyOpenOptions.None), "open the Windows Hello key");
 			using (key)
 			{
 				SetWindowHandle(key, parentWindow);
@@ -256,6 +257,22 @@ internal sealed class NgcBiometricKeyStore : IBiometricKeyStore
 		// Best-effort: parenting the prompt to our window is what focuses it, but some configurations
 		// reject the property — don't fail the unlock over it.
 		NativeMethods.NCryptSetProperty(key, NativeMethods.NCRYPT_WINDOW_HANDLE_PROPERTY, handle, handle.Length, CngPropertyOptions.None);
+	}
+
+	/// <summary>
+	/// Builds the NGC key name in the form the Passport provider requires:
+	/// <c>{userSID}//{domain}/{subdomain}/{name}</c>. A plain name is rejected with
+	/// <c>NTE_INVALID_PARAMETER</c>. (Same scheme as KeePassWinHello.)
+	/// </summary>
+	private static string NgcKeyName(string credentialName)
+	{
+		using var identity = WindowsIdentity.GetCurrent();
+		var sid = identity.User?.Value
+			?? throw new BiometricException("Could not determine the current Windows user account.");
+
+		const string domain = "PassWinmenu";
+		const string subDomain = "";
+		return $"{sid}//{domain}/{subDomain}/{credentialName}";
 	}
 
 	private static void Check(int status, string operation)
