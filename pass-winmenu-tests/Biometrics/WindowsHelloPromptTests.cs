@@ -1,4 +1,4 @@
-using System.Threading.Tasks;
+using System;
 using PassWinmenu.Biometrics;
 using Shouldly;
 using Xunit;
@@ -9,20 +9,11 @@ namespace PassWinmenuTests.Biometrics
 	public class WindowsHelloPromptTests
 	{
 		[Fact]
-		public void RunAsync_WithoutWpfApp_InvokesHelloCallOnceAndReturnsResult()
+		public void Show_WithoutWpfApp_ReturnsAZeroHandleScope()
 		{
-			var calls = 0;
+			using var prompt = WindowsHelloPrompt.Show("unlock");
 
-			var result = WindowsHelloPrompt.RunAsync(
-				"unlock",
-				ct =>
-				{
-					calls++;
-					return Task.FromResult(7);
-				}).GetAwaiter().GetResult();
-
-			result.ShouldBe(7);
-			calls.ShouldBe(1);
+			prompt.Handle.ShouldBe(IntPtr.Zero);
 		}
 	}
 }

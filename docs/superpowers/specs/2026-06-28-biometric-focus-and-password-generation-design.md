@@ -51,74 +51,75 @@ things sabotage focus:
    STA UI thread that owns the foreground window, so WinRT cannot associate the
    consent UI with our foreground window.
 
-### Chosen approach
+### Chosen approach (final)
 
-Run the Hello call on the UI/STA thread, grant foreground rights there, drop
-`Topmost`, and add a clickable safety-net retry.
+The first attempt (run on the UI/STA thread + `AllowSetForegroundWindow` +
+non-topmost window) did not fix it. Research confirmed why:
+`KeyCredentialManager` **has no way to parent or focus its dialog**, and
+`AllowSetForegroundWindow(ASFW_ANY)` is a no-op unless the process already holds
+the foreground privilege — which a global hotkey never grants. Winning the focus
+race with `SetForegroundWindow` tricks is therefore unreliable.
+
+The robust fix (the one KeePassWinHello ships for this exact hotkey scenario) is
+to **drop `KeyCredentialManager` and use the NCrypt/CNG layer**, which exposes
+`NCRYPT_WINDOW_HANDLE_PROPERTY` to parent the Hello gesture dialog to our window
+so it is always focused.
 
 Rejected alternatives:
-- Marshalling only `AllowSetForegroundWindow` to the UI thread while keeping the
-  background thread — leaves the MTA-thread problem; likely still flaky.
-- Replacing `KeyCredentialManager` with `UserConsentVerifier` +
-  `IUserConsentVerifierInterop` (HWND parenting) — rejected: it returns only a
-  yes/no consent, not the TPM-backed signature used to derive the AES key. Would
-  break the encryption model in `PassphraseProtector`.
+- `UserConsentVerifier` + `IUserConsentVerifierInterop` (HWND parenting) — returns
+  only a yes/no consent, not key material; can't protect the passphrase.
+- Foreground tricks alone (`SetForegroundWindow` / synthetic ALT / `AttachThreadInput`)
+  — best-effort only; kept solely to raise our host window, not relied on for the
+  dialog's focus.
+
+### Security model (unchanged seam)
+
+`IBiometricKeyStore`, `BiometricVault`, `IPassphraseProtector` (AES-256-GCM),
+`IBiometricBlobStore`, and all their tests are **unchanged**. The new key store
+implements the existing deterministic `SignAsync(challenge) → bytes` contract via
+NCrypt: at enrolment it generates a random 32-byte secret, encrypts it with the
+NGC RSA key (no gesture) and stores the ciphertext; at unlock it decrypts that
+ciphertext (gesture-gated, HWND-parented). RSA decryption is deterministic, so
+the recovered secret is stable and the AES-GCM protector keeps working. The
+secret is unrecoverable without a successful Hello gesture on this machine's TPM.
 
 ### Components
 
-**`UiThread.RunOnUi<T>(Func<Task<T>> work)` (new)**
-- Ensures `work` runs on the WPF UI (STA) thread and pumps `DispatcherFrame`s
-  until the returned task completes, so WinRT continuations marshal back via the
-  WPF `SynchronizationContext` and `RequestSignAsync` executes on the STA thread.
-- If already on the UI thread: start `work()` inline, pump frames until complete.
-- If on another thread but a WPF app exists: `Dispatcher.Invoke` the pumping
-  helper onto the UI thread.
-- If there is no WPF app (the `pw` CLI): run `work()` directly
-  (`.GetAwaiter().GetResult()`), preserving current CLI behavior.
-- A non-generic `RunOnUi(Func<Task>)` overload mirrors the existing
-  `RunBlocking` overloads.
+**`NgcBiometricKeyStore` (new, replaces `KeyCredentialBiometricKeyStore`)**
+- Backed by the "Microsoft Passport Key Storage Provider" via NCrypt P/Invoke.
+- `CreateAsync`: `NCryptCreatePersistedKey` (RSA-2048, `OverwriteExistingKey`),
+  sets `Length`, `Key Usage` (decrypt), `NgcCacheType = AUTH_MANDATORY` (force a
+  gesture per use), the `HWND Handle`, then `NCryptFinalizeKey`; generates a
+  random secret, `NCryptEncrypt`s it (PKCS#1) and writes the ciphertext to
+  `biometric.hellokey` next to the config.
+- `SignAsync`: reads the ciphertext, opens the key, sets `HWND Handle` +
+  `PinCacheIsGestureRequired`, and `NCryptDecrypt`s (single call — the gesture
+  fires here) to recover the deterministic secret.
+- `ExistsAsync` / `DeleteAsync`: open / delete the NGC key and the sidecar file.
+- `IsAvailableAsync`: `KeyCredentialManager.IsSupportedAsync()` (no UI).
+- Status mapping: `NTE_USER_CANCELLED` / `ERROR_CANCELLED` →
+  `KeyCredentialStatus.UserCanceled`; `NTE_NO_KEY` / `NTE_BAD_KEYSET` →
+  `NotFound`; else a generic `BiometricException` → `Failed`.
 
-**`BiometricPassphraseProvider.GetPassphrase`**
-- Calls `UiThread.RunOnUi(() => vault.TryUnlockAsync(...))` instead of
-  `RunBlocking`. No other behavioral change (outcome handling unchanged).
+**`WindowsHelloPrompt` (host window providing the parent HWND)**
+- `Show(message) : IPromptWindow` shows a small non-topmost window on the UI
+  thread, force-foregrounds it (synthetic ALT keypress + `AttachThreadInput` +
+  `SetForegroundWindow`, best-effort), and exposes `Handle`. `Dispose` closes it.
+- No WPF app (the `pw` CLI / headless tests) → `Handle == IntPtr.Zero`, no window.
 
-**`WindowsHelloPrompt` (reworked into a focus + retry coordinator)**
-- New API:
-  `Task<T> RunAsync<T>(string message, Func<CancellationToken, Task<T>> helloCall)`.
-- Behavior (all on the UI thread):
-  1. Show a small prompt window: `Topmost = false`, `ShowInTaskbar = false`,
-     `WindowStyle = ToolWindow`, centered; content is the message
-     ("Touch your fingerprint sensor to unlock…") plus a button
-     **"Authenticate with Windows Hello"**.
-  2. Force our window to the foreground (existing `AttachThreadInput` /
-     `SetForegroundWindow` dance in `ForceForeground`) and call
-     `AllowSetForegroundWindow(ASFW_ANY)` **on the UI thread while we hold
-     foreground**.
-  3. Start attempt #1 (seamless): `helloCall(cts1.Token)`.
-  4. **Safety net:** the button's click handler (a genuine user input event →
-     guaranteed foreground rights) re-runs the foreground dance, cancels
-     attempt #1 (`cts1.Cancel()`, which cancels the in-flight `IAsyncOperation`
-     via `AsTask(token)`), and starts attempt #2: `helloCall(cts2.Token)`.
-  5. Returns the result of whichever attempt actually completes; an attempt we
-     cancel ourselves is swallowed (never surfaced as a user cancellation).
-  6. Closes the window on completion (success or failure).
-- The old `WindowsHelloPrompt.Show(...)` `IDisposable` form and the
-  `Topmost = true` / background-thread `AllowSetForegroundWindow` are removed.
-- When there is no WPF app, `RunAsync` simply awaits `helloCall` with no window
-  (CLI fallback).
-
-**`KeyCredentialBiometricKeyStore`**
-- `SignAsync` / `CreateAsync` invoke their WinRT call through
-  `WindowsHelloPrompt.RunAsync(message, ct => …RequestSignAsync(buffer).AsTask(ct))`
-  (and the create equivalent). Status checks stay in the key store. The old
-  `AllowForegroundForHelloPrompt()` helper is removed.
+**`BiometricPassphraseProvider` / `EnrollBiometricsAction`**
+- Keep `UiThread.RunBlocking` (background thread + dispatcher pump): NCrypt is
+  synchronous and blocks during the gesture, so it must run off the UI thread
+  while the host window stays responsive. (The interim `UiThread.RunOnUi` helper
+  is removed.)
 
 ### Caveat
 
-Foreground behavior is OS/timing/hardware-sensitive. The threading + ASFW +
-non-topmost changes target the root cause; the click safety-net is the
-guaranteed path. Final validation is manual testing on the user's fingerprint
-sensor.
+The HWND-parenting fix is deterministic, but the real gesture path can only be
+validated on hardware with a fingerprint sensor. Switching key stores invalidates
+any existing enrolment (different key), so the user re-enrols once; the vault's
+existing `KeyInvalidated → ClearEnrollment` path handles the stale blob
+gracefully.
 
 ---
 

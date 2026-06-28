@@ -123,7 +123,7 @@ namespace PassWinmenu
 			// The passphrase provider is stateless (it keeps no cache of its own), so it needs no
 			// special lifetime.
 			builder.RegisterTypes(
-					typeof(KeyCredentialBiometricKeyStore),
+					typeof(NgcBiometricKeyStore),
 					typeof(PassphraseProtector),
 					typeof(FileBiometricBlobStore),
 					typeof(BiometricVault),
