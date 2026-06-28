@@ -182,6 +182,38 @@ Turn on `random-number-separator` together with `capitalisation: random` and you
 The built-in list is the [EFF large diceware word list](https://www.eff.org/dice) (7776 words), used under
 CC BY 3.0. Point `word-list-file` at your own list to override it.
 
+### Length slider
+
+The generate dialog has a **length slider** (8–64) that controls the total password length live as you
+drag it. For `random` style it sets the exact character count; for `xkcd` style the number *and* length of
+words adapt automatically to approximate the chosen length (the label shows the realised length and word
+count). The slider starts at `password-generation.length` and applies to the current session only — it
+never rewrites your yaml.
+
+### Special characters
+
+Some services demand a special character even when it adds nothing. A **toggle** in the generate dialog
+appends them on top of the generated password, and you configure exactly what it does under
+`password-generation.special-characters`:
+
+```yaml
+password-generation:
+    special-characters:
+        enabled: false          # default state of the in-window toggle
+        characters: '!@#$%^&*'  # pool to draw from
+        count: 1                # how many to add
+        placement: end          # end | start | random
+```
+
+| Option | What it does | Example |
+|---|---|---|
+| `enabled` | Whether the dialog toggle starts on. | `true` |
+| `characters` | The pool drawn from when adding characters. | `'!'` always adds `!` |
+| `count` | How many characters to add. | `1` |
+| `placement` | `end` (append), `start` (prepend), or `random` (insert at random positions). | `end` gives `password!` |
+
+For the classic "just put a `!` at the end" case, set `characters: '!'`, `count: 1`, `placement: end`.
+
 ## Configuration
 
 There are two config files, and the difference trips people up:
