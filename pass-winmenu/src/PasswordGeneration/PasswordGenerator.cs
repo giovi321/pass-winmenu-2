@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Text;
 using PassWinmenu.Configuration;
 
 #nullable enable
@@ -19,15 +20,47 @@ namespace PassWinmenu.PasswordGeneration
 
 		public string? GeneratePassword()
 		{
-			return Options.Style == PasswordGenerationStyle.Xkcd
-				? GenerateXkcd()
-				: GenerateRandom();
+			return GeneratePassword(Options.Length, Options.SpecialCharacters.Enabled);
 		}
 
-		private string? GenerateXkcd()
+		/// <summary>
+		/// Generates a password of approximately <paramref name="targetLength"/> characters. For the
+		/// random generator this is the exact character count; for the XKCD generator the word count is
+		/// derived from it (see <see cref="ComputeXkcdWordCount"/>), so the realised length is close but
+		/// not exact. When <paramref name="includeSpecialCharacters"/> is true the configured
+		/// special-character rule is applied on top of the generated password.
+		/// </summary>
+		public string? GeneratePassword(int targetLength, bool includeSpecialCharacters)
+		{
+			var password = Options.Style == PasswordGenerationStyle.Xkcd
+				? GenerateXkcd(ComputeXkcdWordCount(targetLength))
+				: GenerateRandom(targetLength);
+
+			if (password == null)
+			{
+				return null;
+			}
+
+			return includeSpecialCharacters ? ApplySpecialCharacters(password) : password;
+		}
+
+		/// <summary>
+		/// Derives how many words an XKCD passphrase needs to reach roughly <paramref name="targetLength"/>
+		/// characters, using the configured separator and the midpoint of the word-length band.
+		/// </summary>
+		internal int ComputeXkcdWordCount(int targetLength)
+		{
+			var xkcd = Options.Xkcd;
+			var separatorLength = xkcd.RandomNumberSeparator ? 1 : (xkcd.Separator?.Length ?? 0);
+			var midWordLength = Math.Max(1, (xkcd.MinWordLength + xkcd.MaxWordLength) / 2);
+			var wordCount = (int)Math.Round((double)(targetLength + separatorLength) / (midWordLength + separatorLength));
+			return Math.Max(1, wordCount);
+		}
+
+		private string? GenerateXkcd(int wordCount)
 		{
 			var words = LoadWordList(Options.Xkcd.WordListFile);
-			return new XkcdPasswordGenerator(Options.Xkcd, words).GeneratePassword();
+			return new XkcdPasswordGenerator(Options.Xkcd, words, wordCount).GeneratePassword();
 		}
 
 		private static string[] LoadWordList(string? wordListFile)
@@ -43,7 +76,7 @@ namespace PassWinmenu.PasswordGeneration
 			return EmbeddedResources.LoadWordList();
 		}
 
-		private string? GenerateRandom()
+		private string? GenerateRandom(int length)
 		{
 			if (!Options.CharacterGroups.Any(g => g.Enabled))
 			{
@@ -61,13 +94,48 @@ namespace PassWinmenu.PasswordGeneration
 			var charList = completeCharSet.ToList();
 
 			// Generate as many random list indices as we need to build a password.
-			var indices = GetIntegers(charList.Count, Options.Length);
+			var indices = GetIntegers(charList.Count, length);
 
 			// Transform the list of indices into a list of characters.
 			var characters = indices.Select(i => charList[i]).ToArray();
 
 			var password = string.Join("", characters.Select(char.ConvertFromUtf32));
 			return password;
+		}
+
+		/// <summary>
+		/// Adds the configured special characters to <paramref name="password"/>. The caller decides
+		/// whether the rule is active; this method only applies the count/placement.
+		/// </summary>
+		private string ApplySpecialCharacters(string password)
+		{
+			var special = Options.SpecialCharacters;
+			if (special.Count <= 0 || string.IsNullOrEmpty(special.Characters))
+			{
+				return password;
+			}
+
+			var pool = special.Characters;
+			var result = new StringBuilder(password);
+			for (var i = 0; i < special.Count; i++)
+			{
+				var ch = pool[(int)GetRandomInteger((uint)pool.Length)];
+				switch (special.Placement)
+				{
+					case SpecialCharacterPlacement.Start:
+						result.Insert(0, ch);
+						break;
+					case SpecialCharacterPlacement.Random:
+						result.Insert((int)GetRandomInteger((uint)(result.Length + 1)), ch);
+						break;
+					case SpecialCharacterPlacement.End:
+					default:
+						result.Append(ch);
+						break;
+				}
+			}
+
+			return result.ToString();
 		}
 
 		/// <summary>

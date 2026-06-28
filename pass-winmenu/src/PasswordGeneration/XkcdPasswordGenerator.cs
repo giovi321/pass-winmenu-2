@@ -17,11 +17,13 @@ namespace PassWinmenu.PasswordGeneration
 	{
 		private readonly XkcdConfig config;
 		private readonly string[] words;
+		private readonly int? wordCountOverride;
 
-		public XkcdPasswordGenerator(XkcdConfig config, string[] words)
+		public XkcdPasswordGenerator(XkcdConfig config, string[] words, int? wordCountOverride = null)
 		{
 			this.config = config;
 			this.words = words;
+			this.wordCountOverride = wordCountOverride;
 		}
 
 		public string? GeneratePassword()
@@ -41,7 +43,7 @@ namespace PassWinmenu.PasswordGeneration
 				return null;
 			}
 
-			var wordCount = Math.Max(1, config.WordCount);
+			var wordCount = Math.Max(1, wordCountOverride ?? config.WordCount);
 			var builder = new StringBuilder();
 
 			if (config.RandomNumberSeparator)

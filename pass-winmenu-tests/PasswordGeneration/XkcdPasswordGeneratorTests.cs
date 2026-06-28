@@ -143,5 +143,16 @@ namespace PassWinmenuTests.PasswordGeneration
 		{
 			new XkcdPasswordGenerator(Config(), new string[0]).GeneratePassword().ShouldBeNull();
 		}
+
+		[Fact]
+		public void WordCountOverride_OverridesConfiguredWordCount()
+		{
+			var cfg = Config();
+			cfg.WordCount = 4;
+
+			var pw = new XkcdPasswordGenerator(cfg, Words, wordCountOverride: 6).GeneratePassword();
+
+			pw!.Split('-').Length.ShouldBe(6);
+		}
 	}
 }

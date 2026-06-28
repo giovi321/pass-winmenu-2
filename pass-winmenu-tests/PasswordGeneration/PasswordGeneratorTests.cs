@@ -53,5 +53,80 @@ namespace PassWinmenuTests.PasswordGeneration
 
 			password.ShouldBeSubsetOf(allowedCharacters);
 		}
+
+		[Fact]
+		public void GeneratePassword_SpecialCharactersEnd_AppendsConfiguredCount()
+		{
+			var options = new PasswordGenerationConfig
+			{
+				Length = 10,
+				SpecialCharacters = new SpecialCharacterConfig
+				{
+					Enabled = true,
+					Characters = "!",
+					Count = 2,
+					Placement = SpecialCharacterPlacement.End,
+				},
+			};
+
+			var pw = new PasswordGenerator(options).GeneratePassword();
+
+			pw!.Length.ShouldBe(12);
+			pw.EndsWith("!!").ShouldBeTrue();
+		}
+
+		[Fact]
+		public void GeneratePassword_SpecialCharactersStart_PrependsConfiguredCount()
+		{
+			var options = new PasswordGenerationConfig
+			{
+				Length = 10,
+				SpecialCharacters = new SpecialCharacterConfig
+				{
+					Enabled = true,
+					Characters = "!",
+					Count = 1,
+					Placement = SpecialCharacterPlacement.Start,
+				},
+			};
+
+			var pw = new PasswordGenerator(options).GeneratePassword();
+
+			pw!.Length.ShouldBe(11);
+			pw.StartsWith("!").ShouldBeTrue();
+		}
+
+		[Fact]
+		public void GeneratePassword_SpecialCharactersDisabled_DoesNotChangeLength()
+		{
+			var options = new PasswordGenerationConfig
+			{
+				Length = 10,
+				SpecialCharacters = new SpecialCharacterConfig { Enabled = false, Characters = "!", Count = 3 },
+			};
+
+			new PasswordGenerator(options).GeneratePassword()!.Length.ShouldBe(10);
+		}
+
+		[Fact]
+		public void GeneratePassword_WithTargetLength_OverridesConfigLength()
+		{
+			var options = new PasswordGenerationConfig { Length = 20 };
+
+			new PasswordGenerator(options).GeneratePassword(15, includeSpecialCharacters: false)!.Length.ShouldBe(15);
+		}
+
+		[Fact]
+		public void ComputeXkcdWordCount_GrowsWithTargetLength()
+		{
+			var options = new PasswordGenerationConfig { Style = PasswordGenerationStyle.Xkcd };
+			options.Xkcd.MinWordLength = 4;
+			options.Xkcd.MaxWordLength = 8;
+			options.Xkcd.Separator = "-";
+			var generator = new PasswordGenerator(options);
+
+			generator.ComputeXkcdWordCount(8).ShouldBeGreaterThanOrEqualTo(1);
+			generator.ComputeXkcdWordCount(64).ShouldBeGreaterThan(generator.ComputeXkcdWordCount(16));
+		}
 	}
 }
