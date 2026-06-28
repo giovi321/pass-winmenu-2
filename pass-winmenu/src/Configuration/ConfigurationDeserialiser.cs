@@ -15,6 +15,7 @@ namespace PassWinmenu.Configuration
 			.WithTypeConverter(new PascalCaseEnumConverter<HotkeyAction>())
 			.WithTypeConverter(new PascalCaseEnumConverter<PasswordGenerationStyle>())
 			.WithTypeConverter(new PascalCaseEnumConverter<XkcdCapitalisation>())
+			.WithTypeConverter(new PascalCaseEnumConverter<SpecialCharacterPlacement>())
 			.Build();
 
 		public static T Deserialise<T>(StreamReader reader)

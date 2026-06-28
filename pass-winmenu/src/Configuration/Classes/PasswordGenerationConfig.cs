@@ -8,6 +8,9 @@
 		/// <summary>Settings for the XKCD-style passphrase generator (used when <see cref="Style"/> is Xkcd).</summary>
 		public XkcdConfig Xkcd { get; set; } = new XkcdConfig();
 
+		/// <summary>Optional rule for adding special characters to satisfy strict password policies.</summary>
+		public SpecialCharacterConfig SpecialCharacters { get; set; } = new SpecialCharacterConfig();
+
 		public int Length { get; set; } = 20;
 		public CharacterGroupConfig[] CharacterGroups { get; set; } =
 		{
