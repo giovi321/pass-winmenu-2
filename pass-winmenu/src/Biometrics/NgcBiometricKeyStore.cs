@@ -111,18 +111,7 @@ internal sealed class NgcBiometricKeyStore : IBiometricKeyStore
 
 	public Task DeleteAsync(string credentialName)
 	{
-		if (NativeMethods.NCryptOpenStorageProvider(out var provider, NativeMethods.MS_NGC_KEY_STORAGE_PROVIDER, 0) >= 0)
-		{
-			using (provider)
-			{
-				if (NativeMethods.NCryptOpenKey(provider, out var key, credentialName, 0, CngKeyOpenOptions.Silent) >= 0)
-				{
-					// NCryptDeleteKey frees the handle, so stop the SafeHandle from freeing it again.
-					NativeMethods.NCryptDeleteKey(key, 0);
-					key.SetHandleAsInvalid();
-				}
-			}
-		}
+		TryDeleteKey(credentialName);
 
 		if (fileSystem.File.Exists(secretPath))
 		{
@@ -132,13 +121,45 @@ internal sealed class NgcBiometricKeyStore : IBiometricKeyStore
 		return Task.CompletedTask;
 	}
 
+	/// <summary>Deletes the named NGC key if it exists. Best-effort: ignores all failures.</summary>
+	private static void TryDeleteKey(string credentialName)
+	{
+		if (NativeMethods.NCryptOpenStorageProvider(out var provider, NativeMethods.MS_NGC_KEY_STORAGE_PROVIDER, 0) < 0)
+		{
+			return;
+		}
+
+		using (provider)
+		{
+			if (NativeMethods.NCryptOpenKey(provider, out var key, credentialName, 0, CngKeyOpenOptions.Silent) < 0)
+			{
+				return;
+			}
+
+			// NCryptDeleteKey frees the handle on success, so stop the SafeHandle from freeing it again.
+			if (NativeMethods.NCryptDeleteKey(key, 0) >= 0)
+			{
+				key.SetHandleAsInvalid();
+			}
+			else
+			{
+				key.Dispose();
+			}
+		}
+	}
+
 	private static void CreatePersistedKey(string credentialName, IntPtr parentWindow)
 	{
+		// Remove any existing key with this name first — including one left by the previous
+		// KeyCredentialManager enrolment — then create a fresh key. Overwriting in place
+		// (NCRYPT_OVERWRITE_KEY_FLAG) fails with NTE_INVALID_PARAMETER on the Passport provider.
+		TryDeleteKey(credentialName);
+
 		Check(NativeMethods.NCryptOpenStorageProvider(out var provider, NativeMethods.MS_NGC_KEY_STORAGE_PROVIDER, 0), "open the Windows Hello provider");
 		using (provider)
 		{
 			Check(
-				NativeMethods.NCryptCreatePersistedKey(provider, out var key, NativeMethods.BCRYPT_RSA_ALGORITHM, credentialName, 0, CngKeyCreationOptions.OverwriteExistingKey),
+				NativeMethods.NCryptCreatePersistedKey(provider, out var key, NativeMethods.BCRYPT_RSA_ALGORITHM, credentialName, 0, CngKeyCreationOptions.None),
 				"create the Windows Hello key");
 			using (key)
 			{
