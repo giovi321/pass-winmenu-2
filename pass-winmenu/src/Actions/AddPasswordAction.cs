@@ -62,7 +62,7 @@ namespace PassWinmenu.Actions
 			{
 				return;
 			}
-			var password = passwordWindow.Password.Text;
+			var password = passwordWindow.GeneratedPassword;
 			var metadata = passwordWindow.ExtraContent.Text.Replace(Environment.NewLine, "\n");
 
 			PasswordFile passwordFile;
