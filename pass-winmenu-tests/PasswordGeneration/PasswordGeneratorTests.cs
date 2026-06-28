@@ -117,6 +117,43 @@ namespace PassWinmenuTests.PasswordGeneration
 		}
 
 		[Fact]
+		public void GenerateBase_DoesNotApplySpecialCharacters()
+		{
+			var options = new PasswordGenerationConfig
+			{
+				Length = 10,
+				SpecialCharacters = new SpecialCharacterConfig
+				{
+					Enabled = true,
+					Characters = "!",
+					Count = 5,
+					Placement = SpecialCharacterPlacement.End,
+				},
+			};
+
+			new PasswordGenerator(options).GenerateBase(10)!.Length.ShouldBe(10);
+		}
+
+		[Fact]
+		public void ApplySpecialCharacters_PreservesBaseAndAppendsAtEnd()
+		{
+			var options = new PasswordGenerationConfig
+			{
+				SpecialCharacters = new SpecialCharacterConfig
+				{
+					Characters = "!",
+					Count = 2,
+					Placement = SpecialCharacterPlacement.End,
+				},
+			};
+			var generator = new PasswordGenerator(options);
+			var basePassword = generator.GenerateBase(12);
+
+			// Toggling specials must keep the same base and only add to it.
+			generator.ApplySpecialCharacters(basePassword!).ShouldBe(basePassword + "!!");
+		}
+
+		[Fact]
 		public void ComputeXkcdWordCount_GrowsWithTargetLength()
 		{
 			var options = new PasswordGenerationConfig { Style = PasswordGenerationStyle.Xkcd };

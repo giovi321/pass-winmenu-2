@@ -11,6 +11,7 @@ namespace PassWinmenu.Windows
 	{
 		private PasswordGenerator? passwordGenerator;
 		private bool initialised;
+		private string? currentBasePassword;
 
 		public PasswordGeneratorControl()
 		{
@@ -42,7 +43,8 @@ namespace PassWinmenu.Windows
 			}
 
 			LengthSlider.Value = initialLength;
-			LengthSlider.ValueChanged += (_, _) => Regenerate();
+			// Changing the length means a different base password, so regenerate.
+			LengthSlider.ValueChanged += (_, _) => GenerateNewBase();
 
 			// Special-character toggle: only meaningful when a pool is configured.
 			var special = config.SpecialCharacters;
@@ -54,8 +56,9 @@ namespace PassWinmenu.Windows
 			{
 				Chk_Special.Content = $"Add special characters ({special.Characters})";
 				Chk_Special.IsChecked = special.Enabled;
-				Chk_Special.Checked += (_, _) => Regenerate();
-				Chk_Special.Unchecked += (_, _) => Regenerate();
+				// Toggling only adds/removes the special characters; it must NOT regenerate the password.
+				Chk_Special.Checked += (_, _) => RenderPassword();
+				Chk_Special.Unchecked += (_, _) => RenderPassword();
 			}
 
 			// Character-group checkboxes only apply to the random generator.
@@ -69,7 +72,7 @@ namespace PassWinmenu.Windows
 			}
 
 			initialised = true;
-			Regenerate();
+			GenerateNewBase();
 		}
 
 		private void CreateCheckboxes()
@@ -98,7 +101,8 @@ namespace PassWinmenu.Windows
 			}
 		}
 
-		private void Regenerate()
+		/// <summary>Generates a fresh base password (length/character-set driven) and renders it.</summary>
+		private void GenerateNewBase()
 		{
 			if (!initialised || passwordGenerator == null)
 			{
@@ -106,12 +110,35 @@ namespace PassWinmenu.Windows
 			}
 
 			var targetLength = (int)LengthSlider.Value;
+			currentBasePassword = passwordGenerator.GenerateBase(targetLength);
+			UpdateLengthLabel(targetLength);
+			RenderPassword();
+		}
+
+		/// <summary>
+		/// Renders the current base password with or without the special characters, without changing
+		/// the base. Used by the special-character toggle so ticking it does not regenerate.
+		/// </summary>
+		private void RenderPassword()
+		{
+			if (passwordGenerator == null)
+			{
+				return;
+			}
+
 			var includeSpecial = Chk_Special.Visibility == Visibility.Visible && Chk_Special.IsChecked == true;
 
-			Password.Text = passwordGenerator.GeneratePassword(targetLength, includeSpecial);
+			Password.Text = currentBasePassword == null
+				? null
+				: includeSpecial
+					? passwordGenerator.ApplySpecialCharacters(currentBasePassword)
+					: currentBasePassword;
 			Password.CaretIndex = Password.Text?.Length ?? 0;
+		}
 
-			if (passwordGenerator.Options.Style == PasswordGenerationStyle.Xkcd)
+		private void UpdateLengthLabel(int targetLength)
+		{
+			if (passwordGenerator!.Options.Style == PasswordGenerationStyle.Xkcd)
 			{
 				var words = passwordGenerator.ComputeXkcdWordCount(targetLength);
 				Lbl_Length.Text = $"{targetLength}  (≈{words} words)";
@@ -122,7 +149,7 @@ namespace PassWinmenu.Windows
 			}
 		}
 
-		private void Btn_Generate_Click(object sender, RoutedEventArgs e) => Regenerate();
+		private void Btn_Generate_Click(object sender, RoutedEventArgs e) => GenerateNewBase();
 
 		private void HandleCheckedChanged(object sender, RoutedEventArgs e)
 		{
@@ -130,7 +157,7 @@ namespace PassWinmenu.Windows
 			passwordGenerator!.Options.CharacterGroups.First(c => c.Name == checkbox.Name).Enabled =
 				checkbox.IsChecked ?? false;
 
-			Regenerate();
+			GenerateNewBase();
 		}
 	}
 }

@@ -32,16 +32,25 @@ namespace PassWinmenu.PasswordGeneration
 		/// </summary>
 		public string? GeneratePassword(int targetLength, bool includeSpecialCharacters)
 		{
-			var password = Options.Style == PasswordGenerationStyle.Xkcd
-				? GenerateXkcd(ComputeXkcdWordCount(targetLength))
-				: GenerateRandom(targetLength);
-
+			var password = GenerateBase(targetLength);
 			if (password == null)
 			{
 				return null;
 			}
 
 			return includeSpecialCharacters ? ApplySpecialCharacters(password) : password;
+		}
+
+		/// <summary>
+		/// Generates just the base password (no special characters) of approximately
+		/// <paramref name="targetLength"/> characters. The UI keeps this base separate so that toggling
+		/// the special-character switch only adds/removes characters instead of regenerating.
+		/// </summary>
+		public string? GenerateBase(int targetLength)
+		{
+			return Options.Style == PasswordGenerationStyle.Xkcd
+				? GenerateXkcd(ComputeXkcdWordCount(targetLength))
+				: GenerateRandom(targetLength);
 		}
 
 		/// <summary>
@@ -107,7 +116,7 @@ namespace PassWinmenu.PasswordGeneration
 		/// Adds the configured special characters to <paramref name="password"/>. The caller decides
 		/// whether the rule is active; this method only applies the count/placement.
 		/// </summary>
-		private string ApplySpecialCharacters(string password)
+		public string ApplySpecialCharacters(string password)
 		{
 			var special = Options.SpecialCharacters;
 			if (special.Count <= 0 || string.IsNullOrEmpty(special.Characters))
