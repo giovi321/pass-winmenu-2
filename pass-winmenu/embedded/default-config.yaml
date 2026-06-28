@@ -62,8 +62,25 @@ password-store:
             # Path to your own word list (one word per line) to use instead of the built-in
             # EFF diceware list. Leave it commented out / blank to use the built-in list.
             # word-list-file:
-        # Default length for newly generated passwords.
+        # Default length for newly generated passwords. The generation window shows a
+        # slider (8-64) initialised to this value; for the xkcd style the number and
+        # length of words adapt automatically to approximate the chosen length.
         length: 20
+        # Optional rule for adding special characters to generated passwords, to satisfy
+        # services with arbitrary "must contain a special character" policies. The password
+        # generation window shows a toggle; these settings control what that toggle does.
+        special-characters:
+            # Default state of the in-window toggle.
+            enabled: false
+            # Pool of characters to draw from.
+            characters: '!@#$%^&*'
+            # How many characters to add.
+            count: 1
+            # Where to put them:
+            #   end    - append at the end:        "password!"
+            #   start  - prepend at the start:     "!password"
+            #   random - insert at random positions
+            placement: end
         # Defines which character groups can be used to generate passwords.
         # Each entry represents a group that can be toggled individually in the
         # password generation window.
