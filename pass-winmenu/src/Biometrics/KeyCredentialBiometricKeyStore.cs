@@ -1,5 +1,4 @@
 using System; // brings in WindowsRuntimeSystemExtensions, the awaiters for IAsyncOperation/IAsyncAction
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Windows.Security.Credentials;
 using Windows.Security.Cryptography;
@@ -26,19 +25,17 @@ internal sealed class KeyCredentialBiometricKeyStore : IBiometricKeyStore
 
 	public async Task CreateAsync(string credentialName)
 	{
-		using (WindowsHelloPrompt.Show("Setting up Windows Hello for Pass Winmenu 2…"))
-		{
-			AllowForegroundForHelloPrompt();
-			var result = await KeyCredentialManager.RequestCreateAsync(
+		var result = await WindowsHelloPrompt.RunAsync(
+			"Setting up Windows Hello for Pass Winmenu 2…",
+			_ => KeyCredentialManager.RequestCreateAsync(
 				credentialName,
-				KeyCredentialCreationOption.ReplaceExisting);
+				KeyCredentialCreationOption.ReplaceExisting).AsTask());
 
-			if (result.Status != KeyCredentialStatus.Success)
-			{
-				throw new BiometricException(
-					$"Could not create a Windows Hello credential ({result.Status}).",
-					result.Status);
-			}
+		if (result.Status != KeyCredentialStatus.Success)
+		{
+			throw new BiometricException(
+				$"Could not create a Windows Hello credential ({result.Status}).",
+				result.Status);
 		}
 	}
 
@@ -53,53 +50,23 @@ internal sealed class KeyCredentialBiometricKeyStore : IBiometricKeyStore
 		}
 
 		var buffer = CryptographicBuffer.CreateFromByteArray(challenge);
-		using (WindowsHelloPrompt.Show("Unlock your passwords with Windows Hello…"))
-		{
-			AllowForegroundForHelloPrompt();
-			var signResult = await opened.Credential.RequestSignAsync(buffer);
-			if (signResult.Status != KeyCredentialStatus.Success)
-			{
-				throw new BiometricException(
-					$"Windows Hello authentication failed ({signResult.Status}).",
-					signResult.Status);
-			}
+		var signResult = await WindowsHelloPrompt.RunAsync(
+			"Unlock your passwords with Windows Hello…",
+			ct => opened.Credential.RequestSignAsync(buffer).AsTask(ct));
 
-			CryptographicBuffer.CopyToByteArray(signResult.Result, out var signature);
-			return signature;
+		if (signResult.Status != KeyCredentialStatus.Success)
+		{
+			throw new BiometricException(
+				$"Windows Hello authentication failed ({signResult.Status}).",
+				signResult.Status);
 		}
+
+		CryptographicBuffer.CopyToByteArray(signResult.Result, out var signature);
+		return signature;
 	}
 
 	public async Task DeleteAsync(string credentialName)
 	{
 		await KeyCredentialManager.DeleteAsync(credentialName);
-	}
-
-	/// <summary>
-	/// The Windows Hello prompt is drawn by a separate broker process. When pass-winmenu
-	/// triggers it from a background thread (e.g. during a decrypt), Windows' foreground lock
-	/// keeps the broker's window from taking focus, so it appears behind everything. Granting
-	/// any process permission to set the foreground window lets the broker bring its prompt to
-	/// the front. This only succeeds while we still hold foreground rights (we just handled a
-	/// hotkey / showed a window), which is exactly when the prompt is shown.
-	/// </summary>
-	private static void AllowForegroundForHelloPrompt()
-	{
-		try
-		{
-			NativeMethods.AllowSetForegroundWindow(NativeMethods.ASFW_ANY);
-		}
-		catch (DllNotFoundException)
-		{
-			// Non-Windows or a stripped environment: focus is best-effort, so ignore.
-		}
-	}
-
-	private static class NativeMethods
-	{
-		public const int ASFW_ANY = -1;
-
-		[DllImport("user32.dll", SetLastError = true)]
-		[return: MarshalAs(UnmanagedType.Bool)]
-		public static extern bool AllowSetForegroundWindow(int dwProcessId);
 	}
 }

@@ -35,9 +35,9 @@ internal sealed class BiometricPassphraseProvider : IPassphraseProvider
 			return PassphraseResult.Unavailable;
 		}
 
-		// Run on a background thread, pumping the UI dispatcher while we wait, so the Windows
-		// Hello prompt window (shown via the dispatcher) doesn't deadlock against this wait.
-		var result = UiThread.RunBlocking(() => vault.TryUnlockAsync());
+		// Run the unlock on the UI (STA) thread, pumping the dispatcher, so the Windows Hello sign
+		// call is made by the thread that owns the foreground window (required for the broker to focus).
+		var result = UiThread.RunOnUi(() => vault.TryUnlockAsync());
 		switch (result.Outcome)
 		{
 			case UnlockOutcome.Success:

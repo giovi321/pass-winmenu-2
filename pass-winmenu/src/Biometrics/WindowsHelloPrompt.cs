@@ -1,5 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
@@ -7,65 +9,122 @@ using System.Windows.Interop;
 namespace PassWinmenu.Biometrics;
 
 /// <summary>
-/// Shows a small top-most window and forces it to the foreground while a Windows Hello
-/// prompt is displayed. pass-winmenu runs in the tray and is usually not the foreground
-/// process, so without this the system Hello dialog opens behind the active window and is
-/// never focused. Use as: <c>using (WindowsHelloPrompt.Show("...")) { await helloCall; }</c>.
-/// No-ops when there is no WPF application (e.g. the <c>pw</c> command line).
+/// Coordinates a Windows Hello prompt so the system broker dialog is focused and a fingerprint
+/// touch authenticates. pass-winmenu runs in the tray and is usually not the foreground process,
+/// so the Hello dialog otherwise opens behind the active window.
+///
+/// Strategy: on the WPF UI (STA) thread show a small, NON-topmost window (so the broker can sit
+/// above it), force it to the foreground, grant any process the right to set the foreground window
+/// (so the broker can raise itself), then run the Hello call. A "retry" button gives a guaranteed
+/// foreground path: a real click restores our foreground rights, cancels the in-flight attempt, and
+/// starts a fresh one. No-ops the window when there is no WPF application (the <c>pw</c> CLI).
 /// </summary>
 internal static class WindowsHelloPrompt
 {
-	public static IDisposable Show(string message)
+	public static async Task<T> RunAsync<T>(string message, Func<CancellationToken, Task<T>> helloCall)
 	{
 		var app = Application.Current;
 		if (app == null)
 		{
-			return new NoopScope();
+			// No WPF (CLI/headless): no focus management possible, just run the call.
+			return await helloCall(CancellationToken.None);
 		}
 
-		return app.Dispatcher.Invoke(() => (IDisposable)new PromptScope(message));
+		return await app.Dispatcher.Invoke(() => RunOnUiAsync(message, helloCall));
 	}
 
-	private sealed class NoopScope : IDisposable
+	private static async Task<T> RunOnUiAsync<T>(string message, Func<CancellationToken, Task<T>> helloCall)
 	{
-		public void Dispose() { }
-	}
-
-	private sealed class PromptScope : IDisposable
-	{
-		private readonly Window window;
-
-		public PromptScope(string message)
+		var window = CreateWindow(message, out var retryButton);
+		try
 		{
-			window = new Window
-			{
-				Title = "Pass Winmenu 2",
-				Width = 340,
-				Height = 120,
-				WindowStartupLocation = WindowStartupLocation.CenterScreen,
-				WindowStyle = WindowStyle.ToolWindow,
-				ResizeMode = ResizeMode.NoResize,
-				ShowInTaskbar = false,
-				Topmost = true,
-				Content = new TextBlock
-				{
-					Text = message,
-					Margin = new Thickness(18),
-					TextWrapping = TextWrapping.Wrap,
-					VerticalAlignment = VerticalAlignment.Center,
-					HorizontalAlignment = HorizontalAlignment.Center,
-					TextAlignment = TextAlignment.Center,
-				},
-			};
-
 			window.Show();
 			window.Activate();
 			ForceForeground(new WindowInteropHelper(window).Handle);
-		}
+			AllowForegroundForBroker();
 
-		public void Dispose()
+			var attempt = new CancellationTokenSource();
+
+			void OnRetry(object sender, RoutedEventArgs e)
+			{
+				// A genuine click restores our foreground rights; use them to re-raise the broker.
+				ForceForeground(new WindowInteropHelper(window).Handle);
+				AllowForegroundForBroker();
+				var previous = attempt;
+				attempt = new CancellationTokenSource();
+				previous.Cancel();
+			}
+
+			retryButton.Click += OnRetry;
+			try
+			{
+				while (true)
+				{
+					var current = attempt;
+					try
+					{
+						return await helloCall(current.Token);
+					}
+					catch (OperationCanceledException) when (current.IsCancellationRequested && !ReferenceEquals(current, attempt))
+					{
+						// We cancelled this attempt in favour of a retry; loop and await the new one.
+					}
+				}
+			}
+			finally
+			{
+				retryButton.Click -= OnRetry;
+			}
+		}
+		finally
 		{
-			window.Dispatcher.Invoke(() => window.Close());
+			window.Close();
+		}
+	}
+
+	private static Window CreateWindow(string message, out Button retryButton)
+	{
+		retryButton = new Button
+		{
+			Content = "Authenticate with Windows Hello",
+			Padding = new Thickness(10, 4, 10, 4),
+			HorizontalAlignment = HorizontalAlignment.Center,
+		};
+
+		var panel = new StackPanel { Margin = new Thickness(18) };
+		panel.Children.Add(new TextBlock
+		{
+			Text = message,
+			TextWrapping = TextWrapping.Wrap,
+			TextAlignment = TextAlignment.Center,
+			Margin = new Thickness(0, 0, 0, 12),
+		});
+		panel.Children.Add(retryButton);
+
+		return new Window
+		{
+			Title = "Pass Winmenu 2",
+			Width = 340,
+			Height = 150,
+			WindowStartupLocation = WindowStartupLocation.CenterScreen,
+			WindowStyle = WindowStyle.ToolWindow,
+			ResizeMode = ResizeMode.NoResize,
+			ShowInTaskbar = false,
+			// NOT topmost: a topmost window covers the Hello broker dialog itself.
+			Topmost = false,
+			Content = panel,
+		};
+	}
+
+	private static void AllowForegroundForBroker()
+	{
+		try
+		{
+			AllowSetForegroundWindow(ASFW_ANY);
+		}
+		catch (DllNotFoundException)
+		{
+			// Non-Windows or stripped environment: focus is best-effort.
 		}
 	}
 
@@ -99,6 +158,12 @@ internal static class WindowsHelloPrompt
 			SetForegroundWindow(hWnd);
 		}
 	}
+
+	private const int ASFW_ANY = -1;
+
+	[DllImport("user32.dll", SetLastError = true)]
+	[return: MarshalAs(UnmanagedType.Bool)]
+	private static extern bool AllowSetForegroundWindow(int dwProcessId);
 
 	[DllImport("user32.dll")]
 	private static extern IntPtr GetForegroundWindow();
