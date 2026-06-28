@@ -99,7 +99,11 @@ internal static class WindowsHelloPrompt
 		const int SW_SHOW = 5;
 		const byte VK_MENU = 0x12;
 		const uint KEYEVENTF_KEYUP = 0x0002;
+		const uint SPI_GETFOREGROUNDLOCKTIMEOUT = 0x2000;
+		const uint SPI_SETFOREGROUNDLOCKTIMEOUT = 0x2001;
+		const uint SPIF_SENDCHANGE = 0x0002;
 
+		// Synthesise an ALT press so Windows treats us as having received input.
 		keybd_event(VK_MENU, 0, 0, UIntPtr.Zero);
 		keybd_event(VK_MENU, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
 
@@ -112,11 +116,22 @@ internal static class WindowsHelloPrompt
 			AttachThreadInput(foregroundThread, currentThread, true);
 		}
 
+		// Temporarily zero the foreground-lock timeout so SetForegroundWindow actually ACTIVATES the
+		// window (otherwise the system only flashes/raises it, leaving it without input focus — which
+		// is why the Hello prompt looked focused but ignored the fingerprint until clicked).
+		var lockTimeout = 0u;
+		SystemParametersInfo(SPI_GETFOREGROUNDLOCKTIMEOUT, 0, ref lockTimeout, 0);
+		SystemParametersInfo(SPI_SETFOREGROUNDLOCKTIMEOUT, 0, IntPtr.Zero, SPIF_SENDCHANGE);
+
 		ShowWindow(hWnd, SW_RESTORE);
 		BringWindowToTop(hWnd);
 		ShowWindow(hWnd, SW_SHOW);
 		SetForegroundWindow(hWnd);
 		SetActiveWindow(hWnd);
+		SetFocus(hWnd);
+
+		// Restore the user's original lock timeout.
+		SystemParametersInfo(SPI_SETFOREGROUNDLOCKTIMEOUT, 0, new IntPtr(lockTimeout), SPIF_SENDCHANGE);
 
 		if (attached)
 		{
@@ -143,6 +158,17 @@ internal static class WindowsHelloPrompt
 
 	[DllImport("user32.dll")]
 	private static extern IntPtr SetActiveWindow(IntPtr hWnd);
+
+	[DllImport("user32.dll")]
+	private static extern IntPtr SetFocus(IntPtr hWnd);
+
+	[DllImport("user32.dll", SetLastError = true)]
+	[return: MarshalAs(UnmanagedType.Bool)]
+	private static extern bool SystemParametersInfo(uint uiAction, uint uiParam, ref uint pvParam, uint fWinIni);
+
+	[DllImport("user32.dll", SetLastError = true)]
+	[return: MarshalAs(UnmanagedType.Bool)]
+	private static extern bool SystemParametersInfo(uint uiAction, uint uiParam, IntPtr pvParam, uint fWinIni);
 
 	[DllImport("user32.dll")]
 	private static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
