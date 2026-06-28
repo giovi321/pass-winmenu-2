@@ -144,9 +144,12 @@ special-characters:
   the existing `PascalCaseEnumConverter` in `ConfigurationDeserialiser`.
 - Added as `SpecialCharacters` property on `PasswordGenerationConfig`
   (default `new SpecialCharacterConfig()`).
-- `config-version` bumped (and `Program.LastConfigVersion` updated to match) so
-  existing users get the upgrade prompt; the new field has a safe default for
-  configs that omit it.
+- **No `config-version` bump.** A version bump triggers `LoadResult.NeedsUpgrade`,
+  which backs up the user's config, regenerates from the template, and halts
+  (`ConfigurationLoader.cs:67-80`) — disruptive. The new field is fully
+  backward-compatible (safe default when omitted), so existing configs keep
+  working untouched; the documented block is added to the embedded
+  `default-config.yaml` for new installs and anyone who regenerates.
 
 ### Generation engine
 
