@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using Autofac;
 using PassWinmenu.Configuration;
+using PassWinmenu.Windows.Theming;
 
 namespace PassWinmenu;
 
@@ -13,6 +14,8 @@ internal sealed class Setup
 	{
 		// Load compiled-in resources.
 		EmbeddedResources.Load();
+
+		Theme.Apply(configManager.ConfigurationFile.Config.Interface.Style);
 
 		Log.Send("------------------------------");
 		Log.Send($"Starting Pass Winmenu 2 {Program.Version}");
