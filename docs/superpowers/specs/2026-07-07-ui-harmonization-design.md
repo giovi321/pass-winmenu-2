@@ -49,6 +49,8 @@ New `Theme` class (`pass-winmenu/src/Windows/Theme.cs`):
 
 Native title bars: a `DarkTitleBar` helper P/Invoking `DwmSetWindowAttribute(DWMWA_USE_IMMERSIVE_DARK_MODE)`, applied on `SourceInitialized` for every dialog window, only when the theme background is dark.
 
+`Theme.Apply` is idempotent (the merged `Theme.xaml` dictionary is only added once; brushes are still re-set every call) and is re-invoked from `ConfigManager.Reload` on the UI thread after a successful config-file reload, so live WPF windows re-theme via `DynamicResource` immediately; the WinForms tray menu builds its colours once at startup and stays on the old theme until restart.
+
 Window changes:
 
 - AboutWindow, PasswordWindow, PassphraseWindow, EditWindow, LogViewer, PasswordGeneratorControl: remove hardcoded light-theme colors (for example `#FF666666` in AboutWindow, `#569de5` divider in EditWindow), rely on the shared theme; AboutWindow additionally shows the new icon and accent-styled hyperlinks

@@ -72,13 +72,19 @@ namespace PassWinmenu.Notifications
 		private void AddMenuActions(ActionDispatcher actionDispatcher)
 		{
 			var menu = new ContextMenuStrip();
-			var colours = Theme.Current is { IsDark: true } palette ? ThemedMenuColours.FromPalette(palette) : null;
+			var palette = Theme.Current;
+			var colours = palette is { IsDark: true } ? ThemedMenuColours.FromPalette(palette) : null;
 			if (colours != null)
 			{
 				menu.Renderer = new ThemedMenuRenderer(colours);
 				menu.BackColor = colours.Background;
 				menu.ForeColor = colours.Text;
-				downloadUpdate.ForeColor = colours.Link;
+			}
+			// The download-update link keeps its accent colour on any configured theme
+			// (light or dark), even though the rest of the menu only re-skins when dark.
+			if (palette != null)
+			{
+				downloadUpdate.ForeColor = (colours ?? ThemedMenuColours.FromPalette(palette)).Link;
 			}
 			var versionLabel = new ToolStripLabel("Pass Winmenu 2 " + Program.Version);
 			if (colours != null)

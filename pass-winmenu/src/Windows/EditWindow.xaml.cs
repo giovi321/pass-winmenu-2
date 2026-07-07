@@ -2,7 +2,6 @@ using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using System.Windows.Media;
 using PassWinmenu.Configuration;
 
 #nullable enable
@@ -60,11 +59,11 @@ namespace PassWinmenu.Windows
 		{
 			if (PasswordContent.IsFocused)
 			{
-				PasswordDivider.Stroke = new SolidColorBrush(Color.FromRgb(86, 157, 229));
+				PasswordDivider.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "ThemeAccentBrush");
 			}
 			else
 			{
-				PasswordDivider.Stroke = new SolidColorBrush(Color.FromRgb(171, 173, 179));
+				PasswordDivider.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "ThemeControlBorderBrush");
 			}
 		}
 

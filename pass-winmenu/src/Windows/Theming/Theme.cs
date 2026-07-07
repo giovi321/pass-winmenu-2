@@ -17,6 +17,7 @@ namespace PassWinmenu.Windows.Theming
 		public static ThemePalette? Current { get; private set; }
 
 		private static bool handlerRegistered;
+		private static bool dictionaryMerged;
 
 		public static void Apply(StyleConfig style)
 		{
@@ -41,10 +42,14 @@ namespace PassWinmenu.Windows.Theming
 			app.Resources["ThemeControlHoverBrush"] = Freeze(palette.ControlHover);
 			app.Resources["ThemeControlPressedBrush"] = Freeze(palette.ControlPressed);
 
-			app.Resources.MergedDictionaries.Add(new ResourceDictionary
+			if (!dictionaryMerged)
 			{
-				Source = new Uri("pack://application:,,,/pass-winmenu;component/src/Windows/Theming/Theme.xaml"),
-			});
+				dictionaryMerged = true;
+				app.Resources.MergedDictionaries.Add(new ResourceDictionary
+				{
+					Source = new Uri("pack://application:,,,/pass-winmenu;component/src/Windows/Theming/Theme.xaml"),
+				});
+			}
 
 			if (!handlerRegistered)
 			{

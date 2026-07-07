@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Windows;
+using PassWinmenu.Windows.Theming;
 
 #nullable enable
 namespace PassWinmenu.Configuration
@@ -100,6 +101,11 @@ namespace PassWinmenu.Configuration
 				};
 				Log.Send("Configuration file reloaded successfully.");
 
+				// Re-applying the theme here re-themes every live WPF window via
+				// DynamicResource. This runs on the UI thread (see EnableAutoReloading),
+				// so it's safe to touch Application.Resources directly. The WinForms
+				// tray menu builds its colours once at startup and stays stale until restart.
+				Theme.Apply(ConfigurationFile.Config.Interface.Style);
 			}
 			catch (Exception e)
 			{
