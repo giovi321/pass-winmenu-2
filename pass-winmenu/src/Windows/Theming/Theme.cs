@@ -43,7 +43,7 @@ namespace PassWinmenu.Windows.Theming
 
 			app.Resources.MergedDictionaries.Add(new ResourceDictionary
 			{
-				Source = new Uri("pack://application:,,,/src/Windows/Theming/Theme.xaml"),
+				Source = new Uri("pack://application:,,,/pass-winmenu;component/src/Windows/Theming/Theme.xaml"),
 			});
 
 			if (!handlerRegistered)
