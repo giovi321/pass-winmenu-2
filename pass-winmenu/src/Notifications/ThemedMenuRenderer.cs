@@ -42,7 +42,7 @@ namespace PassWinmenu.Notifications
 		{
 			// The stock check glyph is a dark bitmap; draw a themed check mark instead.
 			var r = e.ImageRectangle;
-			using var pen = new Pen(colours.Text, 1.8f);
+			using var pen = new Pen(e.Item.Selected ? colours.SelectionText : colours.Text, 1.8f);
 			e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
 			e.Graphics.DrawLines(pen, new[]
 			{
@@ -72,9 +72,6 @@ namespace PassWinmenu.Notifications
 			public override Color MenuBorder => colours.Border;
 			public override Color SeparatorDark => colours.Separator;
 			public override Color SeparatorLight => colours.Background;
-			public override Color CheckBackground => colours.Background;
-			public override Color CheckSelectedBackground => colours.SelectionBackground;
-			public override Color CheckPressedBackground => colours.SelectionBackground;
 		}
 	}
 }
