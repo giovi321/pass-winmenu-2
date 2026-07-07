@@ -70,6 +70,10 @@ namespace PassWinmenu.Windows.Theming
 			{
 				window.SetResourceReference(Control.ForegroundProperty, "ThemeForegroundBrush");
 			}
+			if (Current is { IsDark: true })
+			{
+				WinApi.DarkTitleBar.Apply(window);
+			}
 		}
 
 		private static SolidColorBrush Freeze(Color colour)
