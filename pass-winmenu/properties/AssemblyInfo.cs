@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using System.Windows;
 using System.Runtime.CompilerServices;
 
@@ -15,10 +16,15 @@ using System.Runtime.CompilerServices;
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
-// Setting ComVisible to false makes the types in this assembly not visible 
-// to COM components.  If you need to access a type in this assembly from 
+// Setting ComVisible to false makes the types in this assembly not visible
+// to COM components.  If you need to access a type in this assembly from
 // COM, set the ComVisible attribute to true on that type.
 [assembly: ComVisible(false)]
+
+// The SDK would normally generate this from SupportedOSPlatformVersion, but
+// GenerateAssemblyInfo is disabled; without it the CA1416 analyzer treats every
+// WinForms/WPF call as reachable on non-Windows platforms.
+[assembly: SupportedOSPlatform("windows10.0.17763.0")]
 
 //In order to begin building localizable applications, set 
 //<UICulture>CultureYouAreCodingWith</UICulture> in your .csproj file
