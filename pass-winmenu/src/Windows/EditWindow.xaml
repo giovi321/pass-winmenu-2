@@ -22,7 +22,7 @@
 				         AcceptsTab="True" CaretIndex="10" FontFamily="Consolas" GotFocus="HandlePasswordContentFocus"
 				         LostFocus="HandlePasswordContentFocus" TextChanged="PasswordContent_TextChanged">
 				</TextBox>
-				<Rectangle x:Name="PasswordDivider" Stroke="#569de5" Margin="10,28,10,0" StrokeThickness="1" StrokeDashArray="2 3" Height="1" VerticalAlignment="Top" />
+				<Rectangle x:Name="PasswordDivider" Stroke="{DynamicResource ThemeAccentBrush}" Margin="10,28,10,0" StrokeThickness="1" StrokeDashArray="2 3" Height="1" VerticalAlignment="Top" />
 			</Grid>
 		</DockPanel>
 
