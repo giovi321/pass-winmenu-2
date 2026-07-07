@@ -133,6 +133,9 @@
 						<Trigger Property="IsKeyboardFocusWithin" Value="True">
 							<Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource ThemeAccentBrush}" />
 						</Trigger>
+						<Trigger Property="IsEnabled" Value="False">
+							<Setter Property="Opacity" Value="0.55" />
+						</Trigger>
 					</ControlTemplate.Triggers>
 				</ControlTemplate>
 			</Setter.Value>

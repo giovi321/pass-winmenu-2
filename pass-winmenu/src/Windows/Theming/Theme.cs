@@ -57,6 +57,17 @@ namespace PassWinmenu.Windows.Theming
 				EventManager.RegisterClassHandler(typeof(Window), FrameworkElement.LoadedEvent,
 					new RoutedEventHandler(OnWindowLoaded));
 			}
+
+			// Windows that are already open only get re-themed brushes via
+			// DynamicResource; their title bars must be switched explicitly
+			// (matters when a config reload turns the theme dark at runtime).
+			if (palette.IsDark)
+			{
+				foreach (Window window in app.Windows)
+				{
+					WinApi.DarkTitleBar.Apply(window);
+				}
+			}
 		}
 
 		private static void OnWindowLoaded(object sender, RoutedEventArgs e)

@@ -44,9 +44,9 @@ namespace PassWinmenu.Windows.Theming
 		}
 
 		internal static Color Mix(Color from, Color to, double amount) => Color.FromRgb(
-			(byte)(from.R + (to.R - from.R) * amount),
-			(byte)(from.G + (to.G - from.G) * amount),
-			(byte)(from.B + (to.B - from.B) * amount));
+			(byte)System.Math.Round(from.R + (to.R - from.R) * amount),
+			(byte)System.Math.Round(from.G + (to.G - from.G) * amount),
+			(byte)System.Math.Round(from.B + (to.B - from.B) * amount));
 
 		internal static double Luminance(Color colour) =>
 			(0.2126 * colour.R + 0.7152 * colour.G + 0.0722 * colour.B) / 255.0;

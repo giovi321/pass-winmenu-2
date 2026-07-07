@@ -74,5 +74,40 @@ namespace PassWinmenuTests.Windows
 			ThemePalette.Luminance(Colors.Black).ShouldBe(0.0, 0.001);
 			ThemePalette.Luminance(Colors.White).ShouldBe(1.0, 0.001);
 		}
+
+		[Fact]
+		public void DarkTheme_InteractionShadesGetProgressivelyLighter()
+		{
+			var palette = new ThemePalette(DarkStyle());
+			ThemePalette.Luminance(palette.ControlHover)
+				.ShouldBeGreaterThan(ThemePalette.Luminance(palette.ControlBackground));
+			ThemePalette.Luminance(palette.ControlPressed)
+				.ShouldBeGreaterThan(ThemePalette.Luminance(palette.ControlHover));
+		}
+
+		[Fact]
+		public void DarkAccent_GetsWhiteAccentForeground()
+		{
+			var style = DarkStyle();
+			style.BorderColour = Helpers.BrushFromColourString("#FF0B3D6B");
+			new ThemePalette(style).AccentForeground.ShouldBe(Colors.White);
+		}
+
+		[Fact]
+		public void LightAccent_GetsDarkAccentForeground()
+		{
+			var style = DarkStyle();
+			style.BorderColour = Helpers.BrushFromColourString("#FFB9D8F2");
+			var foreground = new ThemePalette(style).AccentForeground;
+			ThemePalette.Luminance(foreground).ShouldBeLessThan(0.5);
+		}
+
+		[Fact]
+		public void Mix_RoundsInsteadOfTruncating()
+		{
+			// 0 -> 255 at 0.5 is 127.5, which must round up to 128, not truncate to 127.
+			var mixed = ThemePalette.Mix(Colors.Black, Colors.White, 0.5);
+			mixed.R.ShouldBe((byte)128);
+		}
 	}
 }
