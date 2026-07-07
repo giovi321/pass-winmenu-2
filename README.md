@@ -47,6 +47,19 @@ Or open `pass-winmenu.sln` in Visual Studio. To produce the single-file exe that
 dotnet publish pass-winmenu/pass-winmenu.csproj -c Release
 ```
 
+## What's new in 2.3.0
+
+- A new keyhole icon for the app and the tray, redrawn to stay crisp at every size. The git sync state
+  now shows as a coloured corner badge: green up arrow (ahead), blue down arrow (behind), orange
+  diamond (diverged).
+- Every window follows the same dark, config-driven theme as the password menu: About, add and edit
+  password, Windows Hello setup, and the log viewer, with native dark title bars. Colours come from
+  `interface: style:` in your yaml, so a custom palette applies everywhere. See
+  [Configuration](#configuration).
+- The tray menu matches the theme: dark background, accent highlight, muted version header.
+- Icons are regenerated with `resources/generate_icons.py` (Python + Pillow), replacing the old
+  PowerShell script.
+
 ## What's new in 2.2.1
 
 - Windows Hello unlock now takes its re-prompt cadence solely from gpg-agent's passphrase cache. The
@@ -224,6 +237,11 @@ There are two config files, and the difference trips people up:
   It's created from the reference the first time you run the app, so it won't grow new options on its own;
   copy those across by hand. To start fresh, delete it and restart, then put your store path back.
 
+The colours under `interface: style:` drive the whole UI, not just the selection menu: every dialog, the
+tray menu, and the title bars derive their palette from the configured background and accent (`[accent]`
+means the Windows accent colour). Config edits re-theme open windows immediately; the tray menu picks up
+new colours after a restart.
+
 ## First-time setup
 
 Skip this if you already use `pass`.
@@ -297,7 +315,7 @@ A companion command-line tool, `pw`, comes with it:
 | `pass-winmenu/embedded/` | Resources baked into the exe: `default-config.yaml` (the reference config), `wordlist.txt` (the EFF list for XKCD passphrases), and the tray icons. |
 | `commandline/` | The `pw` command-line tool. |
 | `pass-winmenu-tests/` | Unit tests (xUnit). |
-| `resources/` | The tray-icon SVGs and `generate-icons.ps1`, used only during development. |
+| `resources/` | The icon SVGs and `generate_icons.py`, which regenerates the `.ico` files in `pass-winmenu/embedded/`. Used only during development. |
 | `pass-winmenu.sln` | The solution. |
 
 ## Credits and licence
