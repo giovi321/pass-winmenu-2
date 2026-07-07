@@ -9,6 +9,7 @@ using PassWinmenu.Configuration;
 using PassWinmenu.ExternalPrograms;
 using PassWinmenu.UpdateChecking;
 using PassWinmenu.WinApi;
+using PassWinmenu.Windows.Theming;
 
 namespace PassWinmenu.Notifications
 {
@@ -30,7 +31,6 @@ namespace PassWinmenu.Notifications
 
 			downloadUpdate = new ToolStripMenuItem("Download Update")
 			{
-				BackColor = Color.Beige,
 				Visible = false,
 			};
 			downloadUpdate.Click += HandleDownloadUpdateClick;
@@ -73,7 +73,20 @@ namespace PassWinmenu.Notifications
 		private void AddMenuActions(ActionDispatcher actionDispatcher)
 		{
 			var menu = new ContextMenuStrip();
-			menu.Items.Add(new ToolStripLabel("Pass Winmenu 2 " + Program.Version));
+			var colours = Theme.Current is { IsDark: true } palette ? ThemedMenuColours.FromPalette(palette) : null;
+			if (colours != null)
+			{
+				menu.Renderer = new ThemedMenuRenderer(colours);
+				menu.BackColor = colours.Background;
+				menu.ForeColor = colours.Text;
+				downloadUpdate.ForeColor = colours.Link;
+			}
+			var versionLabel = new ToolStripLabel("Pass Winmenu 2 " + Program.Version);
+			if (colours != null)
+			{
+				versionLabel.ForeColor = colours.Hint;
+			}
+			menu.Items.Add(versionLabel);
 			menu.Items.Add(new ToolStripSeparator());
 
 			menu.Items.Add(downloadUpdate);
@@ -93,6 +106,12 @@ namespace PassWinmenu.Notifications
 			menu.Items.Add(new ToolStripSeparator());
 
 			var dropDown = new ToolStripMenuItem("More Actions");
+			if (colours != null)
+			{
+				dropDown.DropDown.Renderer = new ThemedMenuRenderer(colours);
+				dropDown.DropDown.BackColor = colours.Background;
+				dropDown.DropDown.ForeColor = colours.Text;
+			}
 			dropDown.DropDownItems.Add("Check for Updates", null, (sender, args) => actionDispatcher.Dispatch(HotkeyAction.CheckForUpdates));
 			dropDown.DropDownItems.Add("Edit Configuration", null, (sender, args) => actionDispatcher.Dispatch(HotkeyAction.EditConfiguration));
 			dropDown.DropDownItems.Add("Re-Encrypt Password Store", null, (sender, args) => actionDispatcher.Dispatch(HotkeyAction.ReencryptPasswordStore));
