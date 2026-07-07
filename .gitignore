@@ -14,3 +14,6 @@ version.txt
 *.log
 biometric.blob
 pass-winmenu.yaml
+
+# Generated icon previews
+resources/preview/
