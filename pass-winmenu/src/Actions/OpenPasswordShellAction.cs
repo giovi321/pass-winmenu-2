@@ -5,6 +5,7 @@ using PassWinmenu.Configuration;
 using PassWinmenu.ExternalPrograms;
 using PassWinmenu.ExternalPrograms.Gpg;
 using PassWinmenu.Utilities.ExtensionMethods;
+using PassWinmenu.WinApi;
 
 namespace PassWinmenu.Actions
 {
@@ -31,7 +32,7 @@ namespace PassWinmenu.Actions
 		{
 			var powerShell = new ProcessStartInfo
 			{
-				FileName = "powershell",
+				FileName = PathUtilities.PowerShellPath,
 				WorkingDirectory = passwordStore.Location,
 				UseShellExecute = true,
 			};

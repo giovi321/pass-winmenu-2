@@ -28,10 +28,25 @@ namespace PassWinmenu.WinApi
 			Helpers.AssertOnUiThread();
 
 			var clipboardBackup = MakeClipboardBackup();
-			Clipboard.SetDataObject(text);
+
+			// Place the text in a DataObject that tells Windows 10/11 not to include it
+			// in Clipboard History (Win+V) or upload it to the Cloud Clipboard.
+			var dataObject = new DataObject();
+			dataObject.SetData(DataFormats.Text, text);
+			dataObject.SetData("CanIncludeInClipboardHistory", 0);
+			dataObject.SetData("CanUploadToCloudClipboard", 0);
+			Clipboard.SetDataObject(dataObject, true);
 
 			var timeout = TimeSpan.FromSeconds(config.ClipboardTimeout);
 			Task.Delay(timeout).ContinueWith(_ => PlaceInternal(text, clipboardBackup), TaskScheduler.Default);
+
+			// If the application exits before the timeout elapses, clear the clipboard on exit.
+			// Stale handlers from earlier Place calls are harmless: PlaceInternal only acts
+			// if the clipboard still contains the text it placed.
+			if (Application.Current != null)
+			{
+				Application.Current.Exit += (_, _) => PlaceInternal(text, clipboardBackup);
+			}
 
 			return timeout;
 		}

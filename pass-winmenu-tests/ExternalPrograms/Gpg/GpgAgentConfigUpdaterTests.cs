@@ -17,8 +17,8 @@ namespace PassWinmenuTests.ExternalPrograms.Gpg
 			var updater = new GpgAgentConfigUpdater(reader);
 			var keysToSet = new Dictionary<string, string>
 			{
-				{"key_1", "value_1"},
-				{"key_2", "value_2"},
+				{"default-cache-ttl", "value_1"},
+				{"max-cache-ttl", "value_2"},
 			};
 
 			updater.UpdateAgentConfig(keysToSet);
@@ -27,9 +27,9 @@ namespace PassWinmenuTests.ExternalPrograms.Gpg
 			lines.ShouldBe(new[]
 			{
 				GpgAgentConfigUpdater.ManagedByPassWinmenuComment,
-				"key_1 value_1",
+				"default-cache-ttl value_1",
 				GpgAgentConfigUpdater.ManagedByPassWinmenuComment,
-				"key_2 value_2"
+				"max-cache-ttl value_2"
 			});
 		}
 
@@ -39,14 +39,14 @@ namespace PassWinmenuTests.ExternalPrograms.Gpg
 			var readerMock = new Mock<IGpgAgentConfigReader>();
 			readerMock.Setup(r => r.ReadConfigLines()).Returns(new[]
 			{
-				"key_1 value_1",
-				"key_2 value_2"
+				"default-cache-ttl value_1",
+				"max-cache-ttl value_2"
 			});
 			var updater = new GpgAgentConfigUpdater(readerMock.Object);
 			var keysToSet = new Dictionary<string, string>
 			{
-				{"key_1", "value_1"},
-				{"key_2", "value_2"},
+				{"default-cache-ttl", "value_1"},
+				{"max-cache-ttl", "value_2"},
 			};
 
 			updater.UpdateAgentConfig(keysToSet);
@@ -65,8 +65,8 @@ namespace PassWinmenuTests.ExternalPrograms.Gpg
 			var updater = new GpgAgentConfigUpdater(reader);
 			var keysToSet = new Dictionary<string, string>
 			{
-				{"key_1", "value_1"},
-				{"key_2", "value_2"},
+				{"default-cache-ttl", "value_1"},
+				{"max-cache-ttl", "value_2"},
 			};
 
 			updater.UpdateAgentConfig(keysToSet);
@@ -77,9 +77,9 @@ namespace PassWinmenuTests.ExternalPrograms.Gpg
 				"key_3 value_3",
 				"key_4 value_4",
 				GpgAgentConfigUpdater.ManagedByPassWinmenuComment,
-				"key_1 value_1",
+				"default-cache-ttl value_1",
 				GpgAgentConfigUpdater.ManagedByPassWinmenuComment,
-				"key_2 value_2"
+				"max-cache-ttl value_2"
 			});
 		}
 
@@ -88,15 +88,15 @@ namespace PassWinmenuTests.ExternalPrograms.Gpg
 		{
 			var reader = new FakeGpgAgentConfigReader(new[]
 			{
-				"key_1 value_2",
-				"key_2 value_1"
+				"default-cache-ttl value_2",
+				"max-cache-ttl value_1"
 			});
 
 			var updater = new GpgAgentConfigUpdater(reader);
 			var keysToSet = new Dictionary<string, string>
 			{
-				{"key_1", "value_1"},
-				{"key_2", "value_2"},
+				{"default-cache-ttl", "value_1"},
+				{"max-cache-ttl", "value_2"},
 			};
 
 			updater.UpdateAgentConfig(keysToSet);
@@ -105,9 +105,9 @@ namespace PassWinmenuTests.ExternalPrograms.Gpg
 			lines.ShouldBe(new[]
 			{
 				GpgAgentConfigUpdater.ManagedByPassWinmenuComment,
-				"key_1 value_1",
+				"default-cache-ttl value_1",
 				GpgAgentConfigUpdater.ManagedByPassWinmenuComment,
-				"key_2 value_2"
+				"max-cache-ttl value_2"
 			});
 		}
 
@@ -117,16 +117,16 @@ namespace PassWinmenuTests.ExternalPrograms.Gpg
 			var reader = new FakeGpgAgentConfigReader(new[]
 			{
 				"#this is a comment",
-				"key_1 value_2",
+				"default-cache-ttl value_2",
 				"",
-				"key_2 value_2"
+				"max-cache-ttl value_2"
 			});
 
 			var updater = new GpgAgentConfigUpdater(reader);
 			var keysToSet = new Dictionary<string, string>
 			{
-				{"key_1", "value_1"},
-				{"key_3", "value_3"},
+				{"default-cache-ttl", "value_1"},
+				{"default-cache-ttl-ssh", "value_3"},
 			};
 
 			updater.UpdateAgentConfig(keysToSet);
@@ -136,11 +136,117 @@ namespace PassWinmenuTests.ExternalPrograms.Gpg
 			{
 				"#this is a comment",
 				GpgAgentConfigUpdater.ManagedByPassWinmenuComment,
-				"key_1 value_1",
+				"default-cache-ttl value_1",
 				"",
-				"key_2 value_2",
+				"max-cache-ttl value_2",
 				GpgAgentConfigUpdater.ManagedByPassWinmenuComment,
-				"key_3 value_3"
+				"default-cache-ttl-ssh value_3"
+			});
+		}
+
+		[Fact]
+		public void Update_NonWhitelistedKey_IsNotWritten()
+		{
+			var readerMock = new Mock<IGpgAgentConfigReader>();
+			readerMock.Setup(r => r.ReadConfigLines()).Returns(new string[0]);
+			var updater = new GpgAgentConfigUpdater(readerMock.Object);
+			var keysToSet = new Dictionary<string, string>
+			{
+				{"pinentry-program", "/usr/bin/evil"},
+				{"allow-preset-passphrase", ""},
+			};
+
+			updater.UpdateAgentConfig(keysToSet);
+
+			readerMock.Verify(m => m.WriteConfigLines(It.IsAny<string[]>()), Times.Never);
+		}
+
+		[Fact]
+		public void Update_KeyContainsNewline_IsNotWritten()
+		{
+			var readerMock = new Mock<IGpgAgentConfigReader>();
+			readerMock.Setup(r => r.ReadConfigLines()).Returns(new string[0]);
+			var updater = new GpgAgentConfigUpdater(readerMock.Object);
+			var keysToSet = new Dictionary<string, string>
+			{
+				{"max-cache-ttl\npinentry-program /usr/bin/evil", "3600"},
+			};
+
+			updater.UpdateAgentConfig(keysToSet);
+
+			readerMock.Verify(m => m.WriteConfigLines(It.IsAny<string[]>()), Times.Never);
+		}
+
+		[Fact]
+		public void Update_ValueContainsCarriageReturn_IsNotWritten()
+		{
+			var readerMock = new Mock<IGpgAgentConfigReader>();
+			readerMock.Setup(r => r.ReadConfigLines()).Returns(new string[0]);
+			var updater = new GpgAgentConfigUpdater(readerMock.Object);
+			var keysToSet = new Dictionary<string, string>
+			{
+				{"max-cache-ttl", "3600\r\npinentry-program /usr/bin/evil"},
+			};
+
+			updater.UpdateAgentConfig(keysToSet);
+
+			readerMock.Verify(m => m.WriteConfigLines(It.IsAny<string[]>()), Times.Never);
+		}
+
+		[Fact]
+		public void Update_KeyStartsWithCommentChar_IsNotWritten()
+		{
+			var readerMock = new Mock<IGpgAgentConfigReader>();
+			readerMock.Setup(r => r.ReadConfigLines()).Returns(new string[0]);
+			var updater = new GpgAgentConfigUpdater(readerMock.Object);
+			var keysToSet = new Dictionary<string, string>
+			{
+				{"#max-cache-ttl", "3600"},
+			};
+
+			updater.UpdateAgentConfig(keysToSet);
+
+			readerMock.Verify(m => m.WriteConfigLines(It.IsAny<string[]>()), Times.Never);
+		}
+
+		[Fact]
+		public void Update_MixedValidAndInvalidKeys_WritesOnlyValidKeys()
+		{
+			var reader = new FakeGpgAgentConfigReader(new string[0]);
+			var updater = new GpgAgentConfigUpdater(reader);
+			var keysToSet = new Dictionary<string, string>
+			{
+				{"pinentry-program", "/usr/bin/evil"},
+				{"max-cache-ttl", "3600"},
+			};
+
+			updater.UpdateAgentConfig(keysToSet);
+			var lines = reader.ReadConfigLines();
+
+			lines.ShouldBe(new[]
+			{
+				GpgAgentConfigUpdater.ManagedByPassWinmenuComment,
+				"max-cache-ttl 3600"
+			});
+		}
+
+		[Fact]
+		public void Update_WhitelistedKey_IsWritten()
+		{
+			var reader = new FakeGpgAgentConfigReader(new string[0]);
+			var updater = new GpgAgentConfigUpdater(reader);
+			var keysToSet = new Dictionary<string, string>
+			{
+				{"min-passphrase-len", "8"},
+			};
+
+			updater.UpdateAgentConfig(keysToSet);
+			var lines = reader.ReadConfigLines();
+
+			lines.ShouldBe(new[]
+			{
+				GpgAgentConfigUpdater.ManagedByPassWinmenuComment,
+				"min-passphrase-len 8"
 			});
 		}
 
@@ -162,7 +268,7 @@ namespace PassWinmenuTests.ExternalPrograms.Gpg
 			readerMock.Setup(r => r.WriteConfigLines(It.IsAny<string[]>())).Throws<Exception>();
 			var updater = new GpgAgentConfigUpdater(readerMock.Object);
 
-			Should.NotThrow(() => updater.UpdateAgentConfig(new Dictionary<string, string> {{"key", "value"}}));
+			Should.NotThrow(() => updater.UpdateAgentConfig(new Dictionary<string, string> {{"default-cache-ttl", "value"}}));
 		}
 	}
 }

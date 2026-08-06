@@ -115,14 +115,14 @@ namespace PassWinmenu.UpdateChecking
 		}
 
 		/// <summary>
-		/// Makes a lightweight HTTP request to Google to check whether an internet connection is available.
+		/// Makes a lightweight HTTPS request to Google to check whether an internet connection is available.
 		/// </summary>
 		private static bool GetConnectivity()
 		{
 			try
 			{
 				using (var client = new WebClient())
-				using (client.OpenRead("http://clients3.google.com/generate_204"))
+				using (client.OpenRead("https://www.gstatic.com/generate_204"))
 				{
 					return true;
 				}

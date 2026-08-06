@@ -16,13 +16,13 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           # Full history and tags so the version embeds correctly (git describe --tags).
           fetch-depth: 0
 
       - name: Set up .NET 8
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
           dotnet-version: '8.0.x'
 
@@ -32,9 +32,11 @@ jobs:
       - name: Package
         id: package
         shell: pwsh
+        env:
+          TAG: ${{ github.event.release.tag_name }}
         run: |
           $pub = "pass-winmenu/bin/Release/net8.0-windows10.0.19041.0/win-x64/publish"
-          $tag = "${{ github.event.release.tag_name }}"
+          $tag = "$env:TAG"
           if (-not $tag) { $tag = git describe --tags }
           $ver = $tag.TrimStart('v')
           $stage = "staging"
@@ -50,10 +52,11 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ github.event.release.tag_name }}" "${{ steps.package.outputs.zip }}" --clobber
+          TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$env:TAG" "${{ steps.package.outputs.zip }}" --clobber
 
       - name: Upload build as a workflow artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: pass-winmenu-win-x64
           path: ${{ steps.package.outputs.zip }}

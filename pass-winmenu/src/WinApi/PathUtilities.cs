@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Abstractions;
@@ -9,6 +10,22 @@ namespace PassWinmenu.WinApi
 	// TODO: Bring functionality into PathDisplayService and deal with nullability properly.
 	internal static class PathUtilities
 	{
+		/// <summary>
+		/// Absolute path to PowerShell, resolved against the Windows system directory.
+		/// Starting it by absolute path avoids the CreateProcess search order, which checks the
+		/// application and current working directories first and could pick up a planted executable.
+		/// </summary>
+		public static string PowerShellPath =>
+			Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), @"WindowsPowerShell\v1.0\powershell.exe");
+
+		/// <summary>
+		/// Absolute path to Windows Explorer, resolved against the Windows directory.
+		/// Starting it by absolute path avoids the CreateProcess search order, which checks the
+		/// application and current working directories first and could pick up a planted executable.
+		/// </summary>
+		public static string ExplorerPath =>
+			Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe");
+
 		/// <summary>
 		/// Reformats a file path as relative to the specified base directory.
 		/// If the path does not point to a child of the base directory,

@@ -2,6 +2,8 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Windows;
 using PassWinmenu.Configuration;
 using PassWinmenu.ExternalPrograms;
@@ -115,7 +117,7 @@ namespace PassWinmenu.Actions
 			try
 			{
 				var passwordFile = passwordManager.DecryptPassword(selectedFile, false);
-				File.WriteAllText(plaintextFile, passwordFile.Content);
+				WritePlaintextFile(plaintextFile, passwordFile.Content);
 			}
 			catch (Exception e)
 			{
@@ -124,56 +126,62 @@ namespace PassWinmenu.Actions
 				return;
 			}
 
-			// Open the file in the user's default editor
+			// Open the file in the user's default editor, making sure the plaintext
+			// file is removed no matter how the flow below exits.
 			try
 			{
-				Process.Start(plaintextFile);
-			}
-			catch (Win32Exception e)
-			{
-				EnsureRemoval(plaintextFile);
-				dialogService.ShowErrorWindow($"Unable to open an editor to edit your password file ({e.Message}).");
-				return;
-			}
-
-			var result = MessageBox.Show(
-				"Please keep this window open until you're done editing the password file.\n" +
-				"Then click Yes to save your changes, or No to discard them.",
-				$"Save changes to {selectedFile.FileNameWithoutExtension}?",
-				MessageBoxButton.YesNo,
-				MessageBoxImage.Information);
-
-			if (result == MessageBoxResult.Yes)
-			{
-				// Fetch the content from the file, and delete it.
-				var content = File.ReadAllText(plaintextFile);
-				EnsureRemoval(plaintextFile);
-
-				var newPasswordFile = new DecryptedPasswordFile(selectedFile, content);
 				try
 				{
-					passwordManager.EncryptPassword(newPasswordFile);
-					syncService?.EditPassword(selectedFile.FullPath);
+					Process.Start(plaintextFile);
+				}
+				catch (Win32Exception e)
+				{
+					EnsureRemoval(plaintextFile);
+					dialogService.ShowErrorWindow($"Unable to open an editor to edit your password file ({e.Message}).");
+					return;
+				}
 
-					if (config.Notifications.Types.PasswordUpdated)
+				var result = MessageBox.Show(
+					"Please keep this window open until you're done editing the password file.\n" +
+					"Then click Yes to save your changes, or No to discard them.",
+					$"Save changes to {selectedFile.FileNameWithoutExtension}?",
+					MessageBoxButton.YesNo,
+					MessageBoxImage.Information);
+
+				if (result == MessageBoxResult.Yes)
+				{
+					// Fetch the content from the file, and delete it.
+					var content = File.ReadAllText(plaintextFile);
+					EnsureRemoval(plaintextFile);
+
+					var newPasswordFile = new DecryptedPasswordFile(selectedFile, content);
+					try
 					{
-						notificationService.Raise($"Password file \"{selectedFile}\" has been updated.", Severity.Info);
+						passwordManager.EncryptPassword(newPasswordFile);
+						syncService?.EditPassword(selectedFile.FullPath);
+
+						if (config.Notifications.Types.PasswordUpdated)
+						{
+							notificationService.Raise($"Password file \"{selectedFile}\" has been updated.", Severity.Info);
+						}
+					}
+					catch (GitException e)
+					{
+						dialogService.ShowErrorWindow($"Unable to commit your changes: {e.Message}");
+						EditWithTextEditor(newPasswordFile);
+					}
+					catch (Exception e)
+					{
+						dialogService.ShowErrorWindow($"Unable to save your password (encryption failed): {e.Message}");
+						EditWithTextEditor(newPasswordFile);
 					}
 				}
-				catch (GitException e)
-				{
-					dialogService.ShowErrorWindow($"Unable to commit your changes: {e.Message}");
-					EditWithTextEditor(newPasswordFile);
-				}
-				catch (Exception e)
-				{
-					dialogService.ShowErrorWindow($"Unable to save your password (encryption failed): {e.Message}");
-					EditWithTextEditor(newPasswordFile);
-				}
 			}
-			else
+			finally
 			{
-				File.Delete(plaintextFile);
+				// Also runs when the user discards their changes or an error occurs above,
+				// warning the user if the plaintext file could not be deleted.
+				EnsureRemoval(plaintextFile);
 			}
 		}
 
@@ -192,6 +200,28 @@ namespace PassWinmenu.Actions
 					$"Unable to delete the plaintext file at {path}.\n" +
 					$"An error occurred: {e.GetType().Name} ({e.Message}).\n\n" +
 					$"Please navigate to the given path and delete it manually.", "Plaintext file not deleted.");
+			}
+		}
+
+		/// <summary>
+		/// Writes the given content to a new file readable only by the current user, so the
+		/// plaintext password file cannot be read by other users on the same machine.
+		/// </summary>
+		private static void WritePlaintextFile(string path, string content)
+		{
+			var security = new FileSecurity();
+			// Protect the file from inheriting parent directory permissions.
+			security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+			security.AddAccessRule(new FileSystemAccessRule(
+				WindowsIdentity.GetCurrent().User!,
+				FileSystemRights.FullControl,
+				AccessControlType.Allow));
+
+			var fileInfo = new FileInfo(path);
+			using (var stream = fileInfo.Create(FileMode.CreateNew, FileSystemRights.FullControl, FileShare.None, 4096, FileOptions.None, security))
+			using (var writer = new StreamWriter(stream))
+			{
+				writer.Write(content);
 			}
 		}
 

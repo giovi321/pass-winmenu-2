@@ -13,7 +13,9 @@ namespace PassWinmenu.Utilities.ExtensionMethods
 		{
 			processStartInfo.Arguments = string.Join(
 				" ",
-				args.Select(a => $"\"{a.Replace("\"", "\\\"").Replace("\\", "\\\\")}\""));
+				// Escape backslashes first: escaping quotes first would double the backslash
+				// introduced by the quote escape, corrupting the sequence.
+				args.Select(a => $"\"{a.Replace("\\", "\\\\").Replace("\"", "\\\"")}\""));
 		}
 	}
 }

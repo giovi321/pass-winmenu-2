@@ -86,11 +86,18 @@ namespace PassWinmenu.Actions
 			};
 			foreach (var pair in passFile.Keys)
 			{
-				rows.Add(new PasswordFieldRow(pair.Key, pair.Value, isSecret: false));
+				rows.Add(new PasswordFieldRow(pair.Key, pair.Value, isSecret: IsSecretKey(pair.Key)));
 			}
 
 			var window = new PasswordDetailsWindow(selectedFile.FileNameWithoutExtension, rows, CopyField, config.Interface);
 			window.ShowDialog();
+		}
+
+		private static bool IsSecretKey(string key)
+		{
+			return key.Contains("totp", StringComparison.OrdinalIgnoreCase)
+				|| key.Contains("otpauth", StringComparison.OrdinalIgnoreCase)
+				|| key.Contains("secret", StringComparison.OrdinalIgnoreCase);
 		}
 
 		private void CopyField(PasswordFieldRow row)

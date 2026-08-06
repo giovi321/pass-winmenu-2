@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using PassWinmenu.Configuration;
+using PassWinmenu.WinApi;
 
 namespace PassWinmenu.Actions
 {
@@ -16,7 +17,7 @@ namespace PassWinmenu.Actions
 		{
 			var startInfo = new ProcessStartInfo
 			{
-				FileName = "explorer", 
+				FileName = PathUtilities.ExplorerPath,
 				Arguments = configFile.Path,
 			};
 			Process.Start(startInfo);

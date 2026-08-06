@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using PassWinmenu.Utilities;
 using PassWinmenu.WinApi;
@@ -60,7 +60,7 @@ internal class ConfigurationLoader
 					"New configuration file created");
 				if (open)
 				{
-					Process.Start("explorer", configPath);
+					Process.Start(PathUtilities.ExplorerPath, configPath);
 				}
 
 				return default;
@@ -73,7 +73,7 @@ internal class ConfigurationLoader
 					"Configuration file out of date");
 				if (openBoth)
 				{
-					Process.Start("explorer", configPath);
+					Process.Start(PathUtilities.ExplorerPath, configPath);
 					Process.Start(backedUpFile);
 				}
 

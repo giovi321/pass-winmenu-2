@@ -9,6 +9,24 @@ namespace PassWinmenu.ExternalPrograms.Gpg
 	{
 		public const string ManagedByPassWinmenuComment = "# This configuration key is automatically managed by pass-winmenu";
 
+		/// <summary>
+		/// The gpg-agent config keys pass-winmenu is allowed to manage. Keys from the user's
+		/// config file that are not in this set are ignored, so a malicious config cannot make
+		/// us write dangerous keys (e.g. <c>pinentry-program</c> or <c>allow-preset-passphrase</c>)
+		/// into gpg-agent.conf.
+		/// </summary>
+		private static readonly HashSet<string> AllowedKeys = new HashSet<string>
+		{
+			"default-cache-ttl",
+			"default-cache-ttl-ssh",
+			"max-cache-ttl",
+			"max-cache-ttl-ssh",
+			"min-passphrase-len",
+			"min-passphrase-nonalpha",
+			"check-passphrase-pattern",
+			"enforce-passphrase-constraints",
+		};
+
 		private readonly IGpgAgentConfigReader reader;
 
 		public GpgAgentConfigUpdater(IGpgAgentConfigReader reader)
@@ -18,6 +36,9 @@ namespace PassWinmenu.ExternalPrograms.Gpg
 
 		/// <summary>
 		/// Update the gpg-agent config file with the given keys.
+		/// Keys are validated before anything is written: pairs containing CR/LF characters
+		/// or starting with '#' are rejected, and keys outside <see cref="AllowedKeys"/> are
+		/// ignored, so user-supplied config cannot inject extra lines or dangerous settings.
 		/// </summary>
 		public void UpdateAgentConfig(Dictionary<string, string> keys)
 		{
@@ -33,7 +54,9 @@ namespace PassWinmenu.ExternalPrograms.Gpg
 				return;
 			}
 
-			var newLines = UpdateAgentConfigKeyCollection(lines, keys.ToList()).ToArray();
+			var validatedKeys = keys.Where(IsValidConfigPair).ToDictionary(pair => pair.Key, pair => pair.Value);
+
+			var newLines = UpdateAgentConfigKeyCollection(lines, validatedKeys.ToList()).ToArray();
 
 			if (lines.SequenceEqual(newLines))
 			{
@@ -41,7 +64,7 @@ namespace PassWinmenu.ExternalPrograms.Gpg
 				return;
 			}
 
-			Log.Send($"Modifying GPG agent config file ({string.Join(", ", keys.Keys)})");
+			Log.Send($"Modifying GPG agent config file ({string.Join(", ", validatedKeys.Keys)})");
 			try
 			{
 				reader.WriteConfigLines(newLines);
@@ -113,6 +136,33 @@ namespace PassWinmenu.ExternalPrograms.Gpg
 				Log.ReportException(e);
 				return false;
 			}
+		}
+
+		/// <summary>
+		/// Checks whether a user-supplied config pair is safe to write to gpg-agent.conf.
+		/// Logs a warning and returns false for pairs that must not be written.
+		/// </summary>
+		private static bool IsValidConfigPair(KeyValuePair<string, string> pair)
+		{
+			if (pair.Key.IndexOfAny(new[] { '\r', '\n' }) >= 0 || pair.Value?.IndexOfAny(new[] { '\r', '\n' }) >= 0)
+			{
+				Log.Send($"Ignoring GPG agent config key '{pair.Key}': keys and values may not contain CR or LF characters.", LogLevel.Warning);
+				return false;
+			}
+
+			if (pair.Key.StartsWith("#") || pair.Value?.StartsWith("#") == true)
+			{
+				Log.Send($"Ignoring GPG agent config key '{pair.Key}': keys and values may not start with '#'.", LogLevel.Warning);
+				return false;
+			}
+
+			if (!AllowedKeys.Contains(pair.Key))
+			{
+				Log.Send($"Ignoring GPG agent config key '{pair.Key}': it is not in the whitelist of keys pass-winmenu is allowed to manage.", LogLevel.Warning);
+				return false;
+			}
+
+			return true;
 		}
 
 		/// <summary>

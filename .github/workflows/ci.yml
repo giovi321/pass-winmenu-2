@@ -7,19 +7,23 @@ on:
     branches: [master]
   workflow_dispatch:
 
+# Minimal default permissions; the job only needs to read the repo.
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build and test
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           # Full history and tags so the csproj PreBuild `git describe --tags` works.
           fetch-depth: 0
 
       - name: Set up .NET 8
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
           dotnet-version: '8.0.x'
 

@@ -17,11 +17,12 @@ namespace PassWinmenu.ExternalPrograms
 		public IGitSyncStrategy ChooseSyncStrategy(string repositoryPath, Repository repository, GitConfig config)
 		{
 			var syncMode = config.SyncMode;
+			string? gitPath = null;
 			if (syncMode == SyncMode.Auto)
 			{
 				try
 				{
-					executablePathResolver.Resolve(config.GitPath);
+					gitPath = executablePathResolver.Resolve(config.GitPath);
 					syncMode = SyncMode.NativeGit;
 				}
 				catch (ExecutableNotFoundException)
@@ -32,7 +33,11 @@ namespace PassWinmenu.ExternalPrograms
 
 			if (syncMode == SyncMode.NativeGit)
 			{
-				return new NativeGitSyncStrategy(repositoryPath, config);
+				// Resolve to an absolute path so the git process is started from the resolved
+				// location rather than through the CreateProcess search order, which checks the
+				// application and current working directories first and could pick up a planted git.exe.
+				gitPath ??= executablePathResolver.Resolve(config.GitPath);
+				return new NativeGitSyncStrategy(repositoryPath, gitPath, config);
 			}
 			else
 			{

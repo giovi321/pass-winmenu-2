@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using PassWinmenu.Configuration;
 using PassWinmenu.ExternalPrograms;
+using PassWinmenu.WinApi;
 
 namespace PassWinmenu.Actions
 {
@@ -19,7 +20,7 @@ namespace PassWinmenu.Actions
 
 		public void Execute()
 		{
-			processes.Start(new ProcessStartInfo("explorer", passwordStore.Location));
+			processes.Start(new ProcessStartInfo(PathUtilities.ExplorerPath, passwordStore.Location));
 		}
 	}
 }
