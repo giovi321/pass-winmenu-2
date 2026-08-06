@@ -1,85 +1,71 @@
-# Pass Winmenu 2
+<p align="center">
+  <img src="resources/icon.svg" alt="Pass Winmenu 2" width="120" />
+</p>
 
-[![CI](https://github.com/giovi321/pass-winmenu-2/actions/workflows/ci.yml/badge.svg)](https://github.com/giovi321/pass-winmenu-2/actions/workflows/ci.yml)
-[![Release](https://github.com/giovi321/pass-winmenu-2/actions/workflows/release.yml/badge.svg)](https://github.com/giovi321/pass-winmenu-2/actions/workflows/release.yml)
+<h1 align="center">Pass Winmenu 2</h1>
 
-A keyboard-driven password manager for Windows that can unlock with your fingerprint.
+<p align="center">
+  <a href="https://github.com/giovi321/pass-winmenu-2/actions/workflows/ci.yml"><img src="https://github.com/giovi321/pass-winmenu-2/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/giovi321/pass-winmenu-2/actions/workflows/release.yml"><img src="https://github.com/giovi321/pass-winmenu-2/actions/workflows/release.yml/badge.svg" alt="Release"></a>
+  <a href="LICENCE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
+  <img src="https://img.shields.io/badge/.NET-8-blue" alt=".NET 8">
+  <img src="https://img.shields.io/badge/platform-Windows%2010%2F11-green" alt="Windows 10/11">
+</p>
+
+> **Security-audited.** The 2.4.0 release went through a full security review; all confirmed findings are fixed. See [SECURITY-REVIEW.md](SECURITY-REVIEW.md) for the report and [SECURITY.md](SECURITY.md) to report a vulnerability.
+
+If you've ever wished your `pass` store felt as quick on Windows as it does in a terminal, this is for you.
+
+Pass Winmenu 2 keeps your passwords the way the Linux [pass](https://www.passwordstore.org) tool does:
+GPG-encrypted files in a folder, synced however you like. On top of that it adds a fast, keyboard-driven
+menu, a fingerprint unlock that saves you from typing your GPG passphrase fifty times a day, and a dark,
+fully themeable UI that looks like it belongs on Windows 11.
+
+It sits quietly in the tray. Press `Ctrl Alt P`, type a few letters, hit `Enter` — the password is
+decrypted and typed into whatever you were doing.
 
 Based on [pass-winmenu](https://github.com/geluk/pass-winmenu) by Johan Geluk. It keeps the original's
-idea and its `pass`-compatible storage format, and adds Windows Hello unlocking and a field viewer.
-Maintained by [giovi321](https://github.com/giovi321/pass-winmenu-2).
+idea and its `pass`-compatible storage format, and adds Windows Hello unlocking, a field viewer, TOTP
+support, and a complete dark theme. Maintained by [giovi321](https://github.com/giovi321/pass-winmenu-2).
 
-Your passwords are GPG-encrypted files in a folder, the same way the Linux
-[pass](https://www.passwordstore.org) tool stores them. Pass Winmenu 2 is a small tray app that lets you
-find and decrypt them from the keyboard.
-
-## Install
+## Quick start
 
 1. Download the latest build from the [releases page](https://github.com/giovi321/pass-winmenu-2/releases)
    and unzip it anywhere.
 2. Run `pass-winmenu.exe`. It sits in the tray; press `Ctrl Alt P` to open the menu.
 
+That's it. The exe is self-contained — the .NET 8 Desktop Runtime is bundled, so there is nothing else
+to install. You'll still need GPG itself, from [Gpg4win](https://www.gpg4win.org/) or GnuPG for Windows,
+and Windows 10 or 11.
+
 The download isn't code-signed, so the first time you run it Windows SmartScreen may show "Windows
-protected your PC." Click More info, then Run anyway. That's expected for an unsigned open-source app;
-the source and the workflow that built the exe are both in this repo.
-
-You'll need a few things on the machine:
-
-- Windows 10 or 11.
-- The [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) (the build is framework-dependent).
-- GPG, from [Gpg4win](https://www.gpg4win.org/) or GnuPG for Windows.
+protected your PC." Click **More info**, then **Run anyway**. That's expected for an unsigned open-source
+app; the source and the workflow that built the exe are both in this repo.
 
 The app reads a `pass-winmenu.yaml` next to the exe and creates one on first run. If you've never used
 `pass` before, you also need a GPG key and a password store, covered in [First-time setup](#first-time-setup).
 
-## Build from source
+## What it does
 
-You need the .NET 8 SDK. The project targets `net8.0-windows10.0.19041.0` because the Windows Hello APIs
-live in the Windows 10 SDK.
-
-```
-dotnet build pass-winmenu.sln -c Release
-```
-
-Or open `pass-winmenu.sln` in Visual Studio. To produce the single-file exe that releases ship:
-
-```
-dotnet publish pass-winmenu/pass-winmenu.csproj -c Release
-```
-
-## What's new in 2.3.0
-
-- A new keyhole icon for the app and the tray, redrawn to stay crisp at every size. The git sync state
-  now shows as a coloured corner badge: green up arrow (ahead), blue down arrow (behind), orange
-  diamond (diverged).
-- Every window follows the same dark, config-driven theme as the password menu: About, add and edit
-  password, Windows Hello setup, and the log viewer, with native dark title bars. Colours come from
-  `interface: style:` in your yaml, so a custom palette applies everywhere. See
-  [Configuration](#configuration).
-- The tray menu matches the theme: dark background, accent highlight, muted version header.
-- Icons are regenerated with `resources/generate_icons.py` (Python + Pillow), replacing the old
-  PowerShell script.
-
-## What's new in 2.2.1
-
-- Windows Hello unlock now takes its re-prompt cadence solely from gpg-agent's passphrase cache. The
-  separate `mode` and `cache-seconds` options are gone — old configs keep working, the leftover keys are
-  simply ignored. See [Windows Hello unlock](#windows-hello-unlock).
-- Declining a Windows Hello prompt now cancels the decryption instead of silently falling back to a
-  cached passphrase, closing a gap where pressing Escape could still release a password.
-- A default `Ctrl Alt T` hotkey generates the current TOTP code and types it into the active window. See
-  [Two-factor codes (TOTP)](#two-factor-codes-totp).
-
-## What's new in 2.1
-
-- Unlock with Windows Hello (fingerprint, PIN, or face) instead of typing your GPG passphrase. The
-  passphrase is wrapped by a TPM-backed Hello key and handed to GPG only after you authenticate. See
-  [Windows Hello unlock](#windows-hello-unlock).
-- A "show password fields" view. Pick a file and it lists every field with its value next to it. The
-  password stays hidden behind dots until you click the eye, and clicking any value copies it.
-- XKCD-style passphrases ("correct horse battery staple") as an alternative to random characters,
-  configurable in your yaml. See [Password generation](#password-generation).
-- An in-app About window, and update checks that point at this repository.
+- **Keyboard-first access to your pass store.** A searchable menu opens at your cursor; type to filter,
+  `Tab` to move, `Enter` to decrypt. The password is copied, typed into the active window, or both.
+- **Windows Hello unlock.** Enrol once and your GPG passphrase is released by a fingerprint, face, or PIN
+  instead of a pinentry prompt — wrapped by a TPM-backed Hello key, never stored in the clear.
+- **A field viewer for every entry.** See username, URL, notes, and custom fields at a glance. The
+  password stays masked until you reveal it; any field copies with a click.
+- **TOTP codes.** Store a TOTP secret in an entry's metadata and `Ctrl Alt T` types the current six-digit
+  code into the active window — no second app for two-factor.
+- **Password generation, two ways.** Random character passwords, or XKCD-style passphrases
+  ("correct horse battery staple") from the EFF word list, with a live length slider and configurable
+  separators, capitalisation, and special characters.
+- **Git sync built in.** Pull and push your store from the tray, with ahead/behind/diverged badges on the
+  icon. Uses LibGit2Sharp or your native git, your choice.
+- **A dark, config-driven theme everywhere.** Every window, the tray menu, and the title bars derive
+  their palette from `interface: style:` in your yaml — one source of truth, live re-theming on save.
+- **Careful with your secrets.** Clipboard entries are excluded from Windows clipboard history and cloud
+  sync, auto-cleared after a timeout and on exit, and plaintext temp files are permission-locked and
+  always deleted. See [Security](#security).
+- **A companion CLI.** `pw list`, `pw show`, `pw enroll` for when you are in a terminal anyway.
 
 ## Usage
 
@@ -227,6 +213,27 @@ password-generation:
 
 For the classic "just put a `!` at the end" case, set `characters: '!'`, `count: 1`, `placement: end`.
 
+## Security
+
+The 2.4.0 release was preceded by a full, systematic security review of the codebase — process invocation,
+secret handling, cryptography, configuration parsing, update checking, and the CI/CD supply chain. All nine
+confirmed findings were fixed; the complete report with evidence and remediation notes lives in
+[SECURITY-REVIEW.md](SECURITY-REVIEW.md). Highlights of how the app treats your secrets today:
+
+- Clipboard entries carrying a password or TOTP code are **excluded from Windows clipboard history (Win+V)
+  and cloud clipboard sync**, auto-cleared after a configurable timeout, and cleared on app exit.
+- The GPG passphrase travels via stdin, never the command line, and is zeroed from memory after use; logs
+  never contain decrypted content.
+- External editing writes plaintext to a temp file with **owner-only permissions**, always deleted
+  afterwards — even on errors.
+- git, GPG, PowerShell, and Explorer are launched by absolute path, and git remote names are validated,
+  closing PATH-hijacking and argument-injection paths from a malicious repository or config.
+- `gpg-agent.conf` management is restricted to a whitelist of benign options.
+- Release builds are produced by a pinned, minimal-permission GitHub Actions workflow from this exact
+  source tree.
+
+Found something? Please report it privately via [SECURITY.md](SECURITY.md).
+
 ## Configuration
 
 There are two config files, and the difference trips people up:
@@ -305,6 +312,35 @@ A companion command-line tool, `pw`, comes with it:
 - `pw show all <path>` prints a whole file.
 - `pw show key <key> <path>` prints one field.
 - `pw enroll` sets up Windows Hello unlock.
+
+## Tech stack
+
+| Component    | Technology |
+| ------------ | ---------- |
+| App          | C#, WPF + WinForms on .NET 8 (`net8.0-windows10.0.19041.0`) |
+| Encryption   | GPG (Gpg4win / GnuPG), via stdin passphrases |
+| Windows Hello| `KeyCredentialManager` (TPM-backed) + AES-256-GCM + DPAPI |
+| Git sync     | LibGit2Sharp or native git |
+| Config       | YAML (YamlDotNet), single `pass-winmenu.yaml` |
+| CLI          | `pw`, System.CommandLine |
+| Tests        | xUnit + Moq + Shouldly |
+| Distribution | Self-contained single-file exe via GitHub Actions |
+
+## Build from source
+
+You need the .NET 8 SDK. The project targets `net8.0-windows10.0.19041.0` because the Windows Hello APIs
+live in the Windows 10 SDK.
+
+```
+dotnet build pass-winmenu.sln -c Release
+```
+
+Or open `pass-winmenu.sln` in Visual Studio. To produce the self-contained single-file exe that releases
+ship:
+
+```
+dotnet publish pass-winmenu/pass-winmenu.csproj -c Release -r win-x64 -p:SelfContained=true
+```
 
 ## Repository layout
 
