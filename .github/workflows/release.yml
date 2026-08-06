@@ -27,7 +27,9 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Publish
-        run: dotnet publish pass-winmenu/pass-winmenu.csproj -c Release
+        # Self-contained single-file exe: the .NET Desktop Runtime is bundled,
+        # so users don't need to install it separately.
+        run: dotnet publish pass-winmenu/pass-winmenu.csproj -c Release -r win-x64 -p:SelfContained=true
 
       - name: Package
         id: package
