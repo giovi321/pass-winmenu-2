@@ -192,4 +192,9 @@ All fixes verified by a full solution build (0 errors) and the test suite (262/2
 | VERIFY-1 HTTP probe | **Fixed** | Connectivity probe now `https://www.gstatic.com/generate_204`. |
 | VERIFY-2 TOTP seed display | **Fixed** | Metadata keys containing `totp`/`otpauth`/`secret` (case-insensitive) are masked in the details window. |
 
-**Still open (accepted/low-priority):** VERIFY-3 (`gnupghome-override` + gpg-agent.conf creation — requires config write access), VERIFY-5 (biometric blob file ACLs — contents independently wrapped in DPAPI + Hello-gated RSA), VERIFY-6 (config reload staleness), VERIFY-7 (unsigned release artifacts — consider publishing SHA-256 sums). Manual smoke tests recommended once running on a real machine: Win+V history exclusion, exit-before-timeout clipboard clear, external-editor temp-file ACL (`icacls`), builtin git sync after the LibGit2Sharp upgrade.
+**Still open (accepted/low-priority):** VERIFY-3 (`gnupghome-override` + gpg-agent.conf creation — requires config write access), VERIFY-6 (config reload staleness), and unsigned release artifacts (proper code signing needs a certificate; SHA-256 sums are published alongside the release zip instead). Manual smoke tests recommended once running on a real machine: Win+V history exclusion, exit-before-timeout clipboard clear, external-editor temp-file ACL (`icacls`), builtin git sync after the LibGit2Sharp upgrade.
+
+**Post-review hardening (follow-up commits):**
+- VERIFY-5 **fixed**: `biometric.blob` and `biometric.hellokey` are now written with owner-only ACLs (`Utilities/OwnerOnlyFile.cs`).
+- VERIFY-7 **partially addressed**: release workflow now publishes a SHA-256 checksum file alongside the zip (v2.4.0 assets include `pass-winmenu-2.4.0-win-x64.zip.sha256`); the exe remains unsigned.
+- NuGet audit cleaned up (vulnerable transitive packages from McSherry.SemanticVersioning 1.3.0, Microsoft.Windows.Compatibility 8.0.0, and the xunit 2.4.1 chain were upgraded) and wired into CI, together with dependency-review on PRs and a weekly CodeQL scan (0 security findings on first run).

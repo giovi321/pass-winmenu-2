@@ -1,6 +1,7 @@
 using System.IO.Abstractions;
 using System.Security.Cryptography;
 using PassWinmenu.Configuration;
+using PassWinmenu.Utilities;
 
 namespace PassWinmenu.Biometrics;
 
@@ -41,7 +42,9 @@ internal sealed class FileBiometricBlobStore : IBiometricBlobStore
 	public void Write(byte[] blob)
 	{
 		var protectedBlob = ProtectedData.Protect(blob, null, DataProtectionScope.CurrentUser);
-		fileSystem.File.WriteAllBytes(blobPath, protectedBlob);
+		// The blob is encrypted, but an owner-only ACL keeps other local users from
+		// copying or replacing it even if the config directory is shared or synced.
+		OwnerOnlyFile.WriteAllBytes(fileSystem, blobPath, protectedBlob);
 	}
 
 	public void Delete()

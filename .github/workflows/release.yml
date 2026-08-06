@@ -48,6 +48,10 @@ jobs:
           $zip = "pass-winmenu-$ver-win-x64.zip"
           Compress-Archive -Path "$stage/*" -DestinationPath $zip -Force
           "zip=$zip" >> $env:GITHUB_OUTPUT
+          # Publish a SHA-256 sum so users can verify the download.
+          $sum = "$zip.sha256"
+          "$((Get-FileHash $zip -Algorithm SHA256).Hash.ToLower())  $zip" | Out-File -Encoding ascii $sum
+          "sum=$sum" >> $env:GITHUB_OUTPUT
 
       - name: Attach build to the release
         if: github.event_name == 'release'
@@ -55,7 +59,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.event.release.tag_name }}
-        run: gh release upload "$env:TAG" "${{ steps.package.outputs.zip }}" --clobber
+        run: gh release upload "$env:TAG" "${{ steps.package.outputs.zip }}" "${{ steps.package.outputs.sum }}" --clobber
 
       - name: Upload build as a workflow artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

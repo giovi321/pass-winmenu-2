@@ -6,6 +6,7 @@ using System.Security.Principal;
 using System.Threading.Tasks;
 using Microsoft.Win32.SafeHandles;
 using PassWinmenu.Configuration;
+using PassWinmenu.Utilities;
 using Windows.Security.Credentials;
 
 #nullable enable
@@ -86,7 +87,9 @@ internal sealed class NgcBiometricKeyStore : IBiometricKeyStore
 		try
 		{
 			var ciphertext = Encrypt(credentialName, secret);
-			fileSystem.File.WriteAllBytes(secretPath, ciphertext);
+			// The ciphertext is wrapped by the Hello key, but an owner-only ACL keeps other
+			// local users from copying or replacing it.
+			OwnerOnlyFile.WriteAllBytes(fileSystem, secretPath, ciphertext);
 		}
 		finally
 		{
