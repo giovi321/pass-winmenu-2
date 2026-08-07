@@ -17,3 +17,10 @@ pass-winmenu.yaml
 
 # Generated icon previews
 resources/preview/
+
+# AI assistant session leftovers (Claude / Kimi / superpowers)
+.superpowers/
+.impeccable/
+.claude/
+.kimi/
+docs/superpowers/
