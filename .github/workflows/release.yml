@@ -4,6 +4,13 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: >-
+          Existing release tag to build and attach the exe to (e.g. v2.4.0).
+          Leave empty for a smoke build of the current branch that publishes nothing.
+        required: false
+        default: ''
 
 # Needed so the job can attach the built exe to the release.
 # (The repo default token is read-only; this grants write just for this workflow.)
@@ -14,12 +21,16 @@ jobs:
   publish:
     name: Publish single-file exe
     runs-on: windows-latest
+    env:
+      # Empty on a plain workflow_dispatch, which then only smoke-builds.
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          # Full history and tags so the version embeds correctly (git describe --tags).
-          fetch-depth: 0
+          # Build exactly the tagged commit, so re-running for an existing release
+          # rebuilds that release rather than whatever has landed since.
+          ref: ${{ github.event.release.tag_name || inputs.tag || github.ref }}
 
       - name: Set up .NET 8
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -31,16 +42,26 @@ jobs:
         # so users don't need to install it separately.
         run: dotnet publish pass-winmenu/pass-winmenu.csproj -c Release -r win-x64 -p:SelfContained=true
 
+      - name: Check the build reports the release version
+        # Guards against tagging a release without bumping PassWinmenuVersion, which
+        # would ship an exe that reports the previous version.
+        if: env.TAG != ''
+        shell: pwsh
+        run: |
+          $exe = "pass-winmenu/bin/Release/net8.0-windows10.0.19041.0/win-x64/publish/pass-winmenu.exe"
+          $expected = "$env:TAG".TrimStart('v')
+          $actual = (Get-Item $exe).VersionInfo.FileVersion
+          if ($actual -ne $expected) {
+            throw "Tag $env:TAG expects version $expected but the build reports $actual. Bump <PassWinmenuVersion> in pass-winmenu/pass-winmenu.csproj."
+          }
+          "Build reports version $actual"
+
       - name: Package
         id: package
         shell: pwsh
-        env:
-          TAG: ${{ github.event.release.tag_name }}
         run: |
           $pub = "pass-winmenu/bin/Release/net8.0-windows10.0.19041.0/win-x64/publish"
-          $tag = "$env:TAG"
-          if (-not $tag) { $tag = git describe --tags }
-          $ver = $tag.TrimStart('v')
+          $ver = if ($env:TAG) { "$env:TAG".TrimStart('v') } else { "dev" }
           $stage = "staging"
           New-Item -ItemType Directory -Force $stage | Out-Null
           Copy-Item "$pub/pass-winmenu.exe" $stage
@@ -54,11 +75,12 @@ jobs:
           "sum=$sum" >> $env:GITHUB_OUTPUT
 
       - name: Attach build to the release
-        if: github.event_name == 'release'
+        # Runs for a published release and for a manual re-run against an existing tag,
+        # so a broken asset is always replaced by a CI build rather than a local one.
+        if: env.TAG != ''
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.event.release.tag_name }}
         run: gh release upload "$env:TAG" "${{ steps.package.outputs.zip }}" "${{ steps.package.outputs.sum }}" --clobber
 
       - name: Upload build as a workflow artifact

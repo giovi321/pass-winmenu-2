@@ -46,18 +46,11 @@ using System.Runtime.CompilerServices;
 )]
 
 
-// Version information for an assembly consists of the following four values:
-//
-//      Major Version
-//      Minor Version 
-//      Build Number
-//      Revision
-//
-// You can specify all the values or you can default the Build and Revision Numbers 
-// by using the '*' as shown below:
-// [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("2.4.0")]
-[assembly: AssemblyFileVersion("2.4.0")]
+// AssemblyVersion, AssemblyFileVersion and AssemblyInformationalVersion are generated
+// by the WriteVersionAttributes target in pass-winmenu.csproj, from the same
+// PassWinmenuVersion property that produces the embedded version.txt. Do not add them
+// here as well: duplicating them is what let the reported version drift from the file
+// version. Bump PassWinmenuVersion in the csproj instead.
 
 // Required for tests
 [assembly: InternalsVisibleTo("pass-winmenu-tests")]

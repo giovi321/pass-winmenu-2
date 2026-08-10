@@ -9,6 +9,10 @@
     <RootNamespace>PassWinmenu</RootNamespace>
     <Nullable>enable</Nullable>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <!-- Single source of truth for the release version. Feeds both the embedded
+         version.txt the app reports and the assembly version attributes, so the
+         two can no longer disagree. Bump this when cutting a release. -->
+    <PassWinmenuVersion>2.4.0</PassWinmenuVersion>
     <UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
     <ApplicationIcon>embedded\pass-winmenu-plain.ico</ApplicationIcon>
@@ -86,7 +90,40 @@
     </PackageReference>
     <PackageReference Include="Microsoft.Windows.Compatibility" Version="8.0.29" />
   </ItemGroup>
-  <Target Name="PreBuild" AfterTargets="PreBuildEvent">
-    <Exec Command="git describe --tags &gt; &quot;$(ProjectDir)embedded\version.txt&quot;" />
+  <!-- version.txt is embedded and is what the app reports in the tray menu, the About
+       window, the log header and the update check. It used to be written by
+       `git describe`, which silently falls back to the *previous* tag in any
+       checkout that does not have the current one, so a build made before the release
+       tag was fetched shipped as the older version while its Win32 FileVersion still
+       read correctly. Deriving it from PassWinmenuVersion removes that failure mode. -->
+  <Target Name="WriteVersionResource" AfterTargets="PreBuildEvent">
+    <WriteLinesToFile File="$(ProjectDir)embedded\version.txt"
+                      Lines="v$(PassWinmenuVersion)"
+                      Overwrite="true"
+                      WriteOnlyWhenDifferent="true" />
+  </Target>
+
+  <!-- GenerateAssemblyInfo is off so AssemblyInfo.cs can carry the hand-written
+       attributes; the version attributes are generated here instead of being typed
+       out there, so they come from the same property as version.txt. -->
+  <Target Name="WriteVersionAttributes" BeforeTargets="BeforeCompile">
+    <ItemGroup>
+      <VersionAssemblyAttribute Include="System.Reflection.AssemblyVersionAttribute">
+        <_Parameter1>$(PassWinmenuVersion)</_Parameter1>
+      </VersionAssemblyAttribute>
+      <VersionAssemblyAttribute Include="System.Reflection.AssemblyFileVersionAttribute">
+        <_Parameter1>$(PassWinmenuVersion)</_Parameter1>
+      </VersionAssemblyAttribute>
+      <VersionAssemblyAttribute Include="System.Reflection.AssemblyInformationalVersionAttribute">
+        <_Parameter1>$(PassWinmenuVersion)</_Parameter1>
+      </VersionAssemblyAttribute>
+    </ItemGroup>
+    <WriteCodeFragment Language="C#"
+                       OutputDirectory="$(IntermediateOutputPath)"
+                       OutputFile="VersionAttributes.g.cs"
+                       AssemblyAttributes="@(VersionAssemblyAttribute)">
+      <Output TaskParameter="OutputFile" ItemName="Compile" />
+      <Output TaskParameter="OutputFile" ItemName="FileWrites" />
+    </WriteCodeFragment>
   </Target>
 </Project>
