@@ -12,7 +12,7 @@
     <!-- Single source of truth for the release version. Feeds both the embedded
          version.txt the app reports and the assembly version attributes, so the
          two can no longer disagree. Bump this when cutting a release. -->
-    <PassWinmenuVersion>2.4.1</PassWinmenuVersion>
+    <PassWinmenuVersion>2.5.0</PassWinmenuVersion>
     <UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
     <ApplicationIcon>embedded\pass-winmenu-plain.ico</ApplicationIcon>
