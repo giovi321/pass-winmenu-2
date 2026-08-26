@@ -16,12 +16,16 @@ namespace PassWinmenu.Windows
 		private bool hasSuggestionForEnteredFileName;
 
 		public FileSelectionWindow(IDirectoryInfo baseDirectory, InterfaceConfig interfaceConfig,
-			string hint) : base(interfaceConfig, hint)
+			string hint, string? initialSelection = null) : base(interfaceConfig, hint)
 		{
 			this.baseDirectory = baseDirectory;
 			autocomplete = new DirectoryAutocomplete(baseDirectory);
 			var completions = autocomplete.GetCompletionList("");
 			ResetItems(completions);
+			if (initialSelection != null)
+			{
+				SetSearchBoxText(initialSelection);
+			}
 		}
 
 		protected override void OnSearchTextChanged(object sender, TextChangedEventArgs e)

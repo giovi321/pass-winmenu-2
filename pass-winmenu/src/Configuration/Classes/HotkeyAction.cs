@@ -5,6 +5,8 @@ namespace PassWinmenu.Configuration
 		DecryptPassword, // Decrypt a password
 		AddPassword, // Add a new password
 		EditPassword, // Edit a password
+		RenamePassword, // Rename or move a password file
+		DeletePassword, // Delete a password file
 		GenerateTotpCode, // Generate a totp code
 		DecryptMetadata, // Fetch the metadata from a password
 		PasswordField, // Fetch the field from a metadata key

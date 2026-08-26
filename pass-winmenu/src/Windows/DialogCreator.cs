@@ -28,11 +28,13 @@ namespace PassWinmenu.Windows
 		/// <summary>
 		/// Opens a window where the user can choose the location for a new password file.
 		/// </summary>
+		/// <param name="hint">The hint to display in the search box.</param>
+		/// <param name="initialSelection">An optional path to pre-fill the search box with.</param>
 		/// <returns>The path to the file that the user has chosen</returns>
-		public string? ShowFileSelectionWindow()
+		public string? ShowFileSelectionWindow(string hint = "Choose a location...", string? initialSelection = null)
 		{
 			// Ask the user where the password file should be placed.
-			var pathWindow = new FileSelectionWindow(passwordManager.PasswordStore, config, "Choose a location...");
+			var pathWindow = new FileSelectionWindow(passwordManager.PasswordStore, config, hint, initialSelection);
 			pathWindow.ShowDialog();
 			if (!pathWindow.Success)
 			{

@@ -97,10 +97,12 @@ namespace PassWinmenu.Notifications
 			menu.Items.Add(downloadUpdate);
 			menu.Items.Add(downloadSeparator);
 
-			menu.Items.Add("Decrypt Password", null, (sender, args) => actionDispatcher.DecryptPassword(true, false, false));
-			menu.Items.Add("Show Password Fields", null, (sender, args) => actionDispatcher.Dispatch(HotkeyAction.ShowPassword));
+			menu.Items.Add("Copy Password to Clipboard", null, (sender, args) => actionDispatcher.DecryptPassword(true, false, false));
+			menu.Items.Add("View Entry Details", null, (sender, args) => actionDispatcher.Dispatch(HotkeyAction.ShowPassword));
 			menu.Items.Add("Add new Password", null, (sender, args) => actionDispatcher.Dispatch(HotkeyAction.AddPassword));
 			menu.Items.Add("Edit Password File", null, (sender, args) => actionDispatcher.Dispatch(HotkeyAction.EditPassword));
+			menu.Items.Add("Rename Password", null, (sender, args) => actionDispatcher.Dispatch(HotkeyAction.RenamePassword));
+			menu.Items.Add("Delete Password", null, (sender, args) => actionDispatcher.Dispatch(HotkeyAction.DeletePassword));
 			menu.Items.Add("Generate TOTP Code", null, (sender, args) => actionDispatcher.GenerateTotpCode(true, false));
 			menu.Items.Add(new ToolStripSeparator());
 			menu.Items.Add("Push to Remote", null, (sender, args) => actionDispatcher.Dispatch(HotkeyAction.GitPush));

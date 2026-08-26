@@ -42,6 +42,8 @@ namespace PassWinmenu.Hotkeys
 							break;
 						case HotkeyAction.AddPassword:
 						case HotkeyAction.EditPassword:
+						case HotkeyAction.RenamePassword:
+						case HotkeyAction.DeletePassword:
 						case HotkeyAction.ShowDebugInfo:
 						case HotkeyAction.CheckForUpdates:
 						case HotkeyAction.GitPull:

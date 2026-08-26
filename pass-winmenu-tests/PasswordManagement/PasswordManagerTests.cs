@@ -173,6 +173,96 @@ namespace PassWinmenuTests.PasswordManagement
 			decrypted.Content.ShouldBe("password\nmetadata");
 		}
 
+		[Fact]
+		public void DeletePassword_RemovesFileFromPasswordStore()
+		{
+			var fileSystem = new MockFileSystemBuilder()
+				.WithFile(@"C:\password-store\password_1", "password_1_content")
+				.Build();
+			var passwordDirectory = new MockDirectoryInfo(fileSystem, passwordStorePath);
+			var passwordManager = new PasswordManager(passwordDirectory, new FakeCryptoService(fileSystem), Mock.Of<IRecipientFinder>(), new PasswordFileParser(new UsernameDetectionConfig()), new PasswordStoreConfig());
+			var file = new PasswordFile(fileSystem.FileInfo.New(@"C:\password-store\password_1"), passwordDirectory);
+
+			passwordManager.DeletePassword(file);
+
+			fileSystem.File.Exists(@"C:\password-store\password_1").ShouldBeFalse();
+		}
+
+		[Fact]
+		public void RenamePassword_MovesFileToNewLocation()
+		{
+			var fileSystem = new MockFileSystemBuilder()
+				.WithFile(@"C:\password-store\password_1", "password_1_content")
+				.Build();
+			var passwordDirectory = new MockDirectoryInfo(fileSystem, passwordStorePath);
+			var passwordManager = new PasswordManager(passwordDirectory, new FakeCryptoService(fileSystem), Mock.Of<IRecipientFinder>(), new PasswordFileParser(new UsernameDetectionConfig()), new PasswordStoreConfig());
+			var file = new PasswordFile(fileSystem.FileInfo.New(@"C:\password-store\password_1"), passwordDirectory);
+
+			var renamed = passwordManager.RenamePassword(file, @"sub\renamed_password");
+
+			renamed.ShouldSatisfyAllConditions(
+				() => renamed.FullPath.ShouldBe(@"C:\password-store\sub\renamed_password"),
+				() => fileSystem.File.Exists(@"C:\password-store\password_1").ShouldBeFalse(),
+				() => fileSystem.File.ReadAllText(@"C:\password-store\sub\renamed_password").ShouldBe("password_1_content")
+			);
+		}
+
+		[Fact]
+		public void RenamePassword_SamePath_LeavesFileUnchanged()
+		{
+			var fileSystem = new MockFileSystemBuilder()
+				.WithFile(@"C:\password-store\password_1", "password_1_content")
+				.Build();
+			var passwordDirectory = new MockDirectoryInfo(fileSystem, passwordStorePath);
+			var passwordManager = new PasswordManager(passwordDirectory, new FakeCryptoService(fileSystem), Mock.Of<IRecipientFinder>(), new PasswordFileParser(new UsernameDetectionConfig()), new PasswordStoreConfig());
+			var file = new PasswordFile(fileSystem.FileInfo.New(@"C:\password-store\password_1"), passwordDirectory);
+
+			var renamed = passwordManager.RenamePassword(file, "password_1");
+
+			renamed.ShouldSatisfyAllConditions(
+				() => renamed.FullPath.ShouldBe(file.FullPath),
+				() => fileSystem.File.ReadAllText(@"C:\password-store\password_1").ShouldBe("password_1_content")
+			);
+		}
+
+		[Fact]
+		public void RenamePassword_AbsolutePath_ThrowsArgumentException()
+		{
+			var fileSystem = new MockFileSystemBuilder()
+				.WithFile(@"C:\password-store\password_1", "password_1_content")
+				.Build();
+			var passwordDirectory = new MockDirectoryInfo(fileSystem, passwordStorePath);
+			var passwordManager = new PasswordManager(passwordDirectory, new FakeCryptoService(fileSystem), Mock.Of<IRecipientFinder>(), new PasswordFileParser(new UsernameDetectionConfig()), new PasswordStoreConfig());
+			var file = new PasswordFile(fileSystem.FileInfo.New(@"C:\password-store\password_1"), passwordDirectory);
+
+			Should.Throw<ArgumentException>(() => passwordManager.RenamePassword(file, @"C:\password-store\renamed_password"));
+		}
+
+		[Fact]
+		public void RenamePassword_WithExistingFile_ThrowsInvalidOperationException()
+		{
+			var fileSystem = new MockFileSystemBuilder()
+				.WithFile(@"C:\password-store\password_1", "password_1_content")
+				.WithFile(@"C:\password-store\password_2", "password_2_content")
+				.Build();
+			var passwordDirectory = new MockDirectoryInfo(fileSystem, passwordStorePath);
+			var passwordManager = new PasswordManager(passwordDirectory, new FakeCryptoService(fileSystem), Mock.Of<IRecipientFinder>(), new PasswordFileParser(new UsernameDetectionConfig()), new PasswordStoreConfig());
+			var file = new PasswordFile(fileSystem.FileInfo.New(@"C:\password-store\password_1"), passwordDirectory);
+
+			Should.Throw<InvalidOperationException>(() => passwordManager.RenamePassword(file, "password_2"));
+		}
+
+		[Fact]
+		public void RenamePassword_FileDoesNotExist_ThrowsArgumentException()
+		{
+			var fileSystem = new MockFileSystemBuilder().Build();
+			var passwordDirectory = new MockDirectoryInfo(fileSystem, passwordStorePath);
+			var passwordManager = new PasswordManager(passwordDirectory, new FakeCryptoService(fileSystem), Mock.Of<IRecipientFinder>(), new PasswordFileParser(new UsernameDetectionConfig()), new PasswordStoreConfig());
+			var file = new PasswordFile(fileSystem.FileInfo.New(@"C:\password-store\password_1"), passwordDirectory);
+
+			Should.Throw<ArgumentException>(() => passwordManager.RenamePassword(file, "renamed_password"));
+		}
+
 		private DecryptedPasswordFile CreateDecryptedPassword(MockFileSystem fileSystem, string path, string content)
 		{
 			return new DecryptedPasswordFile(new PasswordFile(

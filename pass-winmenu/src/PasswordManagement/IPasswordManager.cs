@@ -17,5 +17,9 @@ namespace PassWinmenu.PasswordManagement
 		PasswordFile EncryptPassword(DecryptedPasswordFile file);
 		
 		PasswordFile AddPassword(string path, string password, string metadata);
+
+		void DeletePassword(PasswordFile file);
+
+		PasswordFile RenamePassword(PasswordFile file, string newPath);
 	}
 }

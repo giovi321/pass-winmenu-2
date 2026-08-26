@@ -74,9 +74,12 @@ selected entry. GPG asks for your passphrase through pinentry, or through Window
 that on. The decrypted password then goes to your clipboard, gets typed into the active window, or both,
 depending on your hotkey settings.
 
-To look through a file field by field, use the **Show Password Fields** action (`Ctrl Alt O` by default,
+To look through a file field by field, use the **View Entry Details** action (`Ctrl Alt O` by default,
 or the tray menu). Each field shows its value, the password is masked until you reveal it, and a click
 copies the value you want.
+
+The tray menu also lets you add, edit, rename, and delete password files; renames and deletions are
+committed to git like any other change.
 
 For accounts with two-factor authentication, `Ctrl Alt T` generates the current TOTP code and types it
 into the active window. See [Two-factor codes (TOTP)](#two-factor-codes-totp).

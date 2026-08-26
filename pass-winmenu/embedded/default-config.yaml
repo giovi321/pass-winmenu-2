@@ -276,6 +276,10 @@ gpg:
 #        typed, it will be followed by a tab before the password is entered.
 # - add-password
 # - edit-password
+# - rename-password
+#     Rename or move a password file within the password store.
+# - delete-password
+#     Permanently delete a password file (asks for confirmation first).
 # - generate-totp-code
 #     Generate a TOTP code. To use this feature, a password file must have
 #     a a field in its metadata containing the TOTP secret, such as:

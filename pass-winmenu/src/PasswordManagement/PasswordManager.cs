@@ -123,6 +123,54 @@ namespace PassWinmenu.PasswordManagement
 			return default;
 		}
 
+		/// <summary>
+		/// Deletes a password file from the password store.
+		/// </summary>
+		/// <param name="file">The password file to delete.</param>
+		public void DeletePassword(PasswordFile file)
+		{
+			file.FileInfo.Delete();
+		}
+
+		/// <summary>
+		/// Renames (or moves) a password file within the password store.
+		/// If the new path contains directories that do not exist, they will be created automatically.
+		/// </summary>
+		/// <param name="file">The password file to rename.</param>
+		/// <param name="newPath">A path, relative to the password store, indicating where the password file should be moved to.</param>
+		/// <returns>A <see cref="PasswordFile"/> representing the file at its new location.</returns>
+		/// <exception cref="InvalidOperationException">If a file already exists at the new location.</exception>
+		public PasswordFile RenamePassword(PasswordFile file, string newPath)
+		{
+			if (newPath == null)
+			{
+				throw new ArgumentNullException(nameof(newPath));
+			}
+			if (FileSystem.Path.IsPathRooted(newPath))
+			{
+				throw new ArgumentException("Path to the password file must be relative.");
+			}
+			if (!file.FileInfo.Exists)
+			{
+				throw new ArgumentException($"The password file \"{file.FullPath}\" does not exist.");
+			}
+
+			var newFile = CreatePasswordFileFromPath(newPath);
+			if (string.Equals(file.FullPath, newFile.FullPath, StringComparison.OrdinalIgnoreCase))
+			{
+				// Nothing to do, the file already has the requested name.
+				return file;
+			}
+			if (newFile.FileInfo.Exists)
+			{
+				throw new InvalidOperationException("A password file already exists at the specified location.");
+			}
+
+			newFile.Directory.Create();
+			file.FileInfo.MoveTo(newFile.FullPath);
+			return newFile;
+		}
+
 		private PasswordFile EncryptPasswordInternal(DecryptedPasswordFile file, bool overwrite)
 		{
 			file.Directory.Create();
