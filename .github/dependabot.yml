@@ -12,3 +12,9 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+    groups:
+      # init and analyze must move together: CodeQL refuses to run when the
+      # config written by init comes from a different version than analyze.
+      codeql-action:
+        patterns:
+          - "github/codeql-action*"
