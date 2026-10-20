@@ -88,7 +88,7 @@
     <PackageReference Include="Microsoft.DotNet.UpgradeAssistant.Extensions.Default.Analyzers" Version="0.4.410601">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Windows.Compatibility" Version="8.0.29" />
+    <PackageReference Include="Microsoft.Windows.Compatibility" Version="8.0.32" />
   </ItemGroup>
   <!-- version.txt is embedded and is what the app reports in the tray menu, the About
        window, the log header and the update check. It used to be written by
