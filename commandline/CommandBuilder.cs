@@ -9,12 +9,14 @@ public class CommandBuilder
 	private CommandBuilder()
 	{
 		RootCommand = new RootCommand("Commandline companion to pass-winmenu");
-		configFile = new Option<string>(
-			"--config-file",
-			"Path to the configuration file, relative to the main executable");
 		var defaultConfigPath = Path.Join(AppDomain.CurrentDomain.BaseDirectory, "pass-winmenu.yaml");
-		configFile.SetDefaultValue(defaultConfigPath);
-		RootCommand.AddGlobalOption(configFile);
+		configFile = new Option<string>("--config-file")
+		{
+			Description = "Path to the configuration file, relative to the main executable",
+			DefaultValueFactory = _ => defaultConfigPath,
+			Recursive = true,
+		};
+		RootCommand.Options.Add(configFile);
 	}
 
 	private RootCommand RootCommand { get; }
@@ -22,8 +24,8 @@ public class CommandBuilder
 	private CommandBuilder AddList()
 	{
 		var list = new Command("list", "List passwords");
-		var path = new Argument<string>("path", "Search path") {Arity = ArgumentArity.ZeroOrOne};
-		list.AddArgument(path);
+		var path = new Argument<string>("path") {Description = "Search path", Arity = ArgumentArity.ZeroOrOne};
+		list.Arguments.Add(path);
 
 		return this;
 	}
@@ -31,25 +33,25 @@ public class CommandBuilder
 	private CommandBuilder AddShow()
 	{
 		var show = new Command("show", "Show a password");
-		var path = new Argument<string>("path", "Path to the password to be shown");
+		var path = new Argument<string>("path") {Description = "Path to the password to be shown"};
 
 		var all = new Command("all", "Show an entire password file, including metadata");
-		all.AddArgument(path);
-		all.SetHandler(Commands.ShowAll, configFile, path);
+		all.Arguments.Add(path);
+		all.SetAction(r => Commands.ShowAll(r.GetValue(configFile)!, r.GetValue(path)!));
 		
 		var password = new Command("password", "Show a password");
-		password.AddArgument(path);
-		password.SetHandler(Commands.ShowPassword, configFile, path);
+		password.Arguments.Add(path);
+		password.SetAction(r => Commands.ShowPassword(r.GetValue(configFile)!, r.GetValue(path)!));
 		
 		var key = new Command("key", "Show the value of a key");
-		var keyArg = new Argument<string>("key", "Name of the key to be shown");
-		key.AddArgument(keyArg);
-		key.AddArgument(path);
-		key.SetHandler(Commands.ShowKey, configFile, path, keyArg);
+		var keyArg = new Argument<string>("key") {Description = "Name of the key to be shown"};
+		key.Arguments.Add(keyArg);
+		key.Arguments.Add(path);
+		key.SetAction(r => Commands.ShowKey(r.GetValue(configFile)!, r.GetValue(path)!, r.GetValue(keyArg)!));
 		
-		show.AddCommand(all);
-		show.AddCommand(password);
-		show.AddCommand(key);
+		show.Subcommands.Add(all);
+		show.Subcommands.Add(password);
+		show.Subcommands.Add(key);
 
 		RootCommand.Add(show);
 
@@ -59,7 +61,7 @@ public class CommandBuilder
 	private CommandBuilder AddEnroll()
 	{
 		var enroll = new Command("enroll", "Set up Windows Hello (fingerprint) unlock for your GPG passphrase");
-		enroll.SetHandler(Commands.Enroll, configFile);
+		enroll.SetAction(r => Commands.Enroll(r.GetValue(configFile)!));
 		RootCommand.Add(enroll);
 
 		return this;
