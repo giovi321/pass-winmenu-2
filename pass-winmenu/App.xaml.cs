@@ -24,15 +24,17 @@ namespace PassWinmenu
 			Current.Exit += HandleExit;
 			var command = new RootCommand("View and manage passwords");
 
-			var configFile = new CommandLine.Option<string>(
-				"--config-file",
-				"Path to the configuration file, relative to the main executable");
-			configFile.SetDefaultValue(Path.Join(AppDomain.CurrentDomain.BaseDirectory, "pass-winmenu.yaml"));
-			command.AddGlobalOption(configFile);
-			
-			command.SetHandler(HandleRun, configFile);
+			var configFile = new CommandLine.Option<string>("--config-file")
+			{
+				Description = "Path to the configuration file, relative to the main executable",
+				DefaultValueFactory = _ => Path.Join(AppDomain.CurrentDomain.BaseDirectory, "pass-winmenu.yaml"),
+				Recursive = true,
+			};
+			command.Options.Add(configFile);
 
-			command.Invoke(Environment.GetCommandLineArgs()[1..]);
+			command.SetAction(parseResult => HandleRun(parseResult.GetValue(configFile)!));
+
+			command.Parse(Environment.GetCommandLineArgs()[1..]).Invoke();
 		}
 
 		private void HandleRun(string configPath)
