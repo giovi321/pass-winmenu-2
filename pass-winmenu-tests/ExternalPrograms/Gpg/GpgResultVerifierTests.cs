@@ -165,7 +165,7 @@ namespace PassWinmenuTests.ExternalPrograms.Gpg
 				.WithStatusMessage(GpgStatusCode.KEYEXPIRED)
 				.Build();
 
-			var error = Should.Throw<GpgError>(() => verifier.VerifyEncryption(result));
+			Should.Throw<GpgError>(() => verifier.VerifyEncryption(result));
 		}
 
 		[Fact]

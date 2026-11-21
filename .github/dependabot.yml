@@ -6,6 +6,12 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      # Its major version tracks the .NET runtime. A major above the project's
+      # target framework pulls in assemblies that clash with the framework's
+      # own (CS0433 on System.Drawing types), so it moves with the TFM by hand.
+      - dependency-name: Microsoft.Windows.Compatibility
+        update-types: ["version-update:semver-major"]
 
   # The GitHub Actions used by the CI and release workflows.
   - package-ecosystem: github-actions
