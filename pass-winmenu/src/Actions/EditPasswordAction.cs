@@ -162,7 +162,7 @@ namespace PassWinmenu.Actions
 
 						if (config.Notifications.Types.PasswordUpdated)
 						{
-							notificationService.Raise($"Password file \"{selectedFile}\" has been updated.", Severity.Info);
+							notificationService.Raise($"Password file \"{selectedFile.FileNameWithoutExtension}\" has been updated.", Severity.Info);
 						}
 					}
 					catch (GitException e)

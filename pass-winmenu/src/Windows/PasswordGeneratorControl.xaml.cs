@@ -88,7 +88,7 @@ namespace PassWinmenu.Windows
 				{
 					Name = charGroup.Name,
 					Content = charGroup.Name,
-					Margin = new Thickness(x * 100, y * 20, 0, 0),
+					Margin = new Thickness(x * 100.0, y * 20.0, 0, 0),
 					HorizontalAlignment = HorizontalAlignment.Left,
 					VerticalAlignment = VerticalAlignment.Top,
 					IsChecked = charGroup.Enabled,
